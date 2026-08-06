@@ -6,22 +6,156 @@
 <title>Computational Governance for Autonomous Systems</title>
 <meta name="description" content="A formal model, reference implementation, and runtime-agnostic benchmark for runtime governance of autonomous systems.">
 <style>
-  :root{--ink:#1a1a1a;--muted:#5c5c66;--line:#e5e3dd;--bg:#faf9f6;--accent:#7a5c3e;--accent-soft:#f0ebe2;--code-bg:#f4f2ec;--allow:#3f7a4f;--block:#a33b3b;--esc:#b07a1e}
-  *{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--bg);color:var(--ink);font:400 17px/1.6 "Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;-webkit-font-smoothing:antialiased}.wrap{max-width:760px;margin:0 auto;padding:0 24px}header{padding:88px 0 40px;border-bottom:1px solid var(--line)}.kicker{font:600 13px/1 ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);margin:0 0 20px}h1{font-size:40px;line-height:1.15;margin:0 0 22px;letter-spacing:-.01em}.lede{font-size:21px;color:var(--muted);margin:0}.lede b{color:var(--ink);font-weight:600}nav{margin:34px 0 0;font:500 15px/1 ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}nav a{color:var(--accent);text-decoration:none;margin-right:22px;border-bottom:1px solid transparent;padding-bottom:2px}nav a:hover{border-bottom-color:var(--accent)}section{padding:44px 0;border-bottom:1px solid var(--line)}h2{font-size:15px;font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);margin:0 0 20px}p{margin:0 0 18px}.muted{color:var(--muted)}code{font-family:"SF Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.9em;background:var(--code-bg);padding:.12em .4em;border-radius:4px}pre{background:var(--code-bg);border:1px solid var(--line);border-radius:10px;padding:18px 20px;overflow:auto;font-family:"SF Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:14px;line-height:1.55}pre code{background:none;padding:0}.eq{background:var(--accent-soft);border:1px solid var(--line);border-radius:10px;padding:20px 22px;text-align:center;font-size:19px;margin:0 0 20px}.props{list-style:none;padding:0;margin:0}.props li{padding:10px 0 10px 26px;position:relative;border-top:1px solid var(--line)}.props li:first-child{border-top:none}.props li::before{content:"▸";position:absolute;left:0;color:var(--accent)}.props b{font-weight:600}table{width:100%;border-collapse:collapse;font:400 15px/1.5 ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line)}th{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}.s-done{color:var(--allow);font-weight:600}.s-todo{color:var(--muted)}.tag{display:inline-block;font:600 12px/1 ui-sans-serif,system-ui,sans-serif;padding:4px 9px;border-radius:20px;letter-spacing:.02em}.t-allow{background:#e7f0e9;color:var(--allow)}.t-block{background:#f5e6e6;color:var(--block)}.t-esc{background:#f6ecd8;color:var(--esc)}.cards{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:0}.card{border:1px solid var(--line);border-radius:10px;padding:16px 18px;background:#fff}.card h3{margin:0 0 6px;font:600 15px/1.3 ui-sans-serif,system-ui,sans-serif}.card p{margin:0;font-size:14px;color:var(--muted);line-height:1.5}.btn{display:inline-block;font:600 15px/1 ui-sans-serif,system-ui,sans-serif;background:var(--ink);color:var(--bg);text-decoration:none;padding:13px 22px;border-radius:8px;margin-right:12px}.btn.alt{background:none;color:var(--ink);border:1px solid var(--ink)}footer{padding:40px 0 80px;color:var(--muted);font:400 14px/1.6 ui-sans-serif,system-ui,sans-serif}footer a{color:var(--accent)}@media(max-width:560px){h1{font-size:32px}.cards{grid-template-columns:1fr}header{padding:56px 0 32px}}
+  :root{
+    --ink:#1a1a1a; --muted:#5c5c66; --line:#e5e3dd; --bg:#faf9f6;
+    --accent:#7a5c3e; --accent-soft:#f0ebe2; --code-bg:#f4f2ec; --allow:#3f7a4f; --block:#a33b3b; --esc:#b07a1e;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font:400 17px/1.6 "Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:760px; margin:0 auto; padding:0 24px}
+  header{padding:88px 0 40px; border-bottom:1px solid var(--line)}
+  .kicker{font:600 13px/1 ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif; letter-spacing:.12em; text-transform:uppercase; color:var(--accent); margin:0 0 20px}
+  h1{font-size:40px; line-height:1.15; margin:0 0 22px; letter-spacing:-.01em}
+  .lede{font-size:21px; color:var(--muted); margin:0}
+  .lede b{color:var(--ink); font-weight:600}
+  nav{margin:34px 0 0; font:500 15px/1 ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
+  nav a{color:var(--accent); text-decoration:none; margin-right:22px; border-bottom:1px solid transparent; padding-bottom:2px}
+  nav a:hover{border-bottom-color:var(--accent)}
+  section{padding:44px 0; border-bottom:1px solid var(--line)}
+  h2{font-size:15px; font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--accent); margin:0 0 20px}
+  p{margin:0 0 18px}
+  .muted{color:var(--muted)}
+  code{font-family:"SF Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:.9em; background:var(--code-bg); padding:.12em .4em; border-radius:4px}
+  pre{background:var(--code-bg); border:1px solid var(--line); border-radius:10px; padding:18px 20px; overflow:auto; font-family:"SF Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:14px; line-height:1.55}
+  pre code{background:none; padding:0}
+  .eq{background:var(--accent-soft); border:1px solid var(--line); border-radius:10px; padding:20px 22px; text-align:center; font-size:19px; margin:0 0 20px}
+  .props{list-style:none; padding:0; margin:0}
+  .props li{padding:10px 0 10px 26px; position:relative; border-top:1px solid var(--line)}
+  .props li:first-child{border-top:none}
+  .props li::before{content:"▸"; position:absolute; left:0; color:var(--accent)}
+  .props b{font-weight:600}
+  table{width:100%; border-collapse:collapse; font:400 15px/1.5 ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
+  th,td{text-align:left; padding:9px 10px; border-bottom:1px solid var(--line)}
+  th{font-size:12px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted)}
+  .s-done{color:var(--allow); font-weight:600}
+  .s-todo{color:var(--muted)}
+  .tag{display:inline-block; font:600 12px/1 ui-sans-serif,system-ui,sans-serif; padding:4px 9px; border-radius:20px; letter-spacing:.02em}
+  .t-allow{background:#e7f0e9; color:var(--allow)}
+  .t-block{background:#f5e6e6; color:var(--block)}
+  .t-esc{background:#f6ecd8; color:var(--esc)}
+  .cards{display:grid; grid-template-columns:1fr 1fr; gap:14px; margin:0}
+  .card{border:1px solid var(--line); border-radius:10px; padding:16px 18px; background:#fff}
+  .card h3{margin:0 0 6px; font:600 15px/1.3 ui-sans-serif,system-ui,sans-serif}
+  .card p{margin:0; font-size:14px; color:var(--muted); line-height:1.5}
+  .btn{display:inline-block; font:600 15px/1 ui-sans-serif,system-ui,sans-serif; background:var(--ink); color:var(--bg); text-decoration:none; padding:13px 22px; border-radius:8px; margin-right:12px}
+  .btn.alt{background:none; color:var(--ink); border:1px solid var(--ink)}
+  footer{padding:40px 0 80px; color:var(--muted); font:400 14px/1.6 ui-sans-serif,system-ui,sans-serif}
+  footer a{color:var(--accent)}
+  @media (max-width:560px){ h1{font-size:32px} .cards{grid-template-columns:1fr} header{padding:56px 0 32px} }
 </style>
 </head>
-<body><div class="wrap">
-<header><p class="kicker">A Research Program</p><h1>Computational Governance for Autonomous Systems</h1><p class="lede">Existing governance systems evaluate <b>requests</b>. Computational Governance evaluates <b>evolving decision processes</b>.</p><nav><a href="#problem">The problem</a><a href="#model">The model</a><a href="#status">Status</a><a href="#roadmap">Roadmap</a><a href="https://github.com/sahinraj/Computational-Governance-AI">GitHub ↗</a></nav></header>
-<section id="problem"><h2>The problem</h2><p>Autonomous agents increasingly act inside organizations bound by explicit rules. The rules live in natural-language policy documents; the agent's behavior is governed by prompts. Nothing guarantees the two agree.</p><p>Policy-as-code today assumes a deterministic caller making a static, pre-declared request. Agents reason, choose actions at runtime, and delegate authority. This project defines and implements governance for that harder setting: deciding whether an intended action is permitted <em>before it executes</em>.</p></section>
-<section id="model"><h2>The decision function</h2><p>Given governance state <code>S = (A, C, Γ, Δ, κ)</code> and intended action <code>α = (actor, capability, params)</code>, compute:</p><div class="eq"><code>𝒢(S, α) → { Allow, Block, Escalate(role) }</code></div><ul class="props"><li><b>Rule soundness</b> — <span class="tag t-allow">Allow</span> only if every applicable rule is satisfied.</li><li><b>Delegation validity</b> — delegated authority must be valid at decision time.</li><li><b>Escalation totality</b> — escalation is a first-class outcome.</li><li><b>Context currency</b> — decisions reflect current mutable context.</li></ul></section>
-<section id="example"><h2>What it looks like</h2><pre><code>LAW-001
+<body>
+<div class="wrap">
+
+<header>
+  <p class="kicker">A Research Program</p>
+  <h1>Computational Governance for Autonomous Systems</h1>
+  <p class="lede">Existing governance systems evaluate <b>requests</b>. Computational Governance evaluates <b>evolving decision processes</b>.</p>
+  <nav>
+    <a href="#problem">The problem</a>
+    <a href="#model">The model</a>
+    <a href="#status">Status</a>
+    <a href="#roadmap">Roadmap</a>
+    <a href="https://github.com/sahinraj/Computational-Governance-AI">GitHub ↗</a>
+  </nav>
+</header>
+
+<section id="problem">
+  <h2>The problem</h2>
+  <p>Autonomous agents increasingly act inside organizations bound by explicit rules. The rules live in natural-language policy documents; the agent's behavior is governed by prompts. Nothing guarantees the two agree.</p>
+  <p>Policy-as-code today (OPA/Rego, RBAC, ABAC) assumes a deterministic caller making a static, pre-declared request. Agents reason, choose actions at runtime, and delegate authority to other agents. This project defines and implements governance for that harder setting: deciding whether an intended action is permitted <em>before it executes</em>.</p>
+</section>
+
+<section id="model">
+  <h2>The decision function</h2>
+  <p>Given a governance state <code>S = (A, C, &Gamma;, &Delta;, &kappa;)</code> and an intended action <code>&alpha; = (actor, capability, params)</code>, compute a decision:</p>
+  <div class="eq"><code>&#120126;(S,&nbsp;&alpha;) &rarr; { Allow, Block, Escalate(role) }</code></div>
+  <p>subject to four properties, each of which is also a benchmark category and a safety theorem:</p>
+  <ul class="props">
+    <li><b>Rule soundness</b> — <span class="tag t-allow">Allow</span> only if every applicable rule is satisfied under current context.</li>
+    <li><b>Delegation validity</b> — delegated authority must be valid along the actor's chain at decision time.</li>
+    <li><b>Escalation totality</b> — a failed <em>escalate</em> rule yields <span class="tag t-esc">Escalate</span>, a first-class outcome, not a failure.</li>
+    <li><b>Context currency</b> — the decision reflects the current context, so the same action can decide differently later in the process.</li>
+  </ul>
+</section>
+
+<section id="example">
+  <h2>What it looks like</h2>
+  <p>Rules are written in a small declarative language. A <code>Law</code> in the syntax denotes a <code>Rule</code> in the formal model.</p>
+  <pre><code>LAW-001
   capability: payment.send
   authority_level: &gt;= 3
   constraint: amount &lt;= 100
   requires_approval: FinanceLead
-  on_violation: escalate</code></pre></section>
-<section id="status"><h2>Status</h2><p class="muted">Foundations v1 is frozen. The implementation advances milestone by milestone with acceptance tests.</p><table><thead><tr><th>Milestone</th><th>Description</th><th>State</th></tr></thead><tbody><tr><td>M1</td><td>Repo and harness</td><td class="s-done">Done</td></tr><tr><td>M2</td><td>Law parser</td><td class="s-done">Done</td></tr><tr><td>M3</td><td>Single-rule semantics</td><td class="s-done">Done</td></tr><tr><td>M4–M11</td><td>Composition through evaluation</td><td class="s-todo">Planned</td></tr></tbody></table></section>
-<section id="roadmap"><h2>The program</h2><div class="cards"><div class="card"><h3>Foundations v1</h3><p>Entities, governance state, axioms, semantics, delegation, and safety theorems.</p></div><div class="card"><h3>Reference implementation</h3><p>A concrete realization of the decision function.</p></div><div class="card"><h3>GovernanceBench</h3><p>Runtime-agnostic scenarios for comparing governance systems.</p></div><div class="card"><h3>Open problems</h3><p>Delegation algebra, identity, complexity, temporal, and cross-system governance.</p></div></div></section>
-<section id="get"><h2>Explore</h2><p><a class="btn" href="https://github.com/sahinraj/Computational-Governance-AI">View on GitHub</a><a class="btn alt" href="https://github.com/sahinraj/Computational-Governance-AI/blob/main/spec/foundations.md">Read Foundations v1</a></p></section>
-<footer><p>Apache-2.0 licensed. Early-stage independent research by Sahin Raj.</p></footer>
-</div></body></html>
+  on_violation: escalate</code></pre>
+  <pre><code>from governance import parse_laws, Actor, Action, Capability, Context
+
+rules = parse_laws(open("policy.law").read())
+action = Action(Actor("agent-1", authority_level=5),
+                Capability("payment.send"), {"amount": 150})
+
+rules[0].evaluate(action, Context())   # Result.VIOLATED</code></pre>
+</section>
+
+<section id="status">
+  <h2>Status</h2>
+  <p class="muted">The theory is frozen at Foundations v1. The reference implementation is building milestone by milestone against it; each milestone has an acceptance test.</p>
+  <table>
+    <thead><tr><th>Milestone</th><th>Description</th><th>State</th></tr></thead>
+    <tbody>
+      <tr><td>M1</td><td>Repo and harness</td><td class="s-done">Done</td></tr>
+      <tr><td>M2</td><td>Law parser</td><td class="s-done">Done</td></tr>
+      <tr><td>M3</td><td>Single-rule semantics</td><td class="s-done">Done</td></tr>
+      <tr><td>M4</td><td>Composition &amp; inheritance</td><td class="s-todo">Planned</td></tr>
+      <tr><td>M5</td><td>Compiler + validation</td><td class="s-todo">Planned</td></tr>
+      <tr><td>M6</td><td>Interceptor, shadow mode</td><td class="s-todo">Planned</td></tr>
+      <tr><td>M7</td><td>Delegation graph</td><td class="s-todo">Planned</td></tr>
+      <tr><td>M8</td><td>Enforce mode + escalation</td><td class="s-todo">Planned</td></tr>
+      <tr><td>M9</td><td>GovernanceBench dataset</td><td class="s-todo">Planned</td></tr>
+      <tr><td>M10</td><td>Evaluation vs static baseline</td><td class="s-todo">Planned</td></tr>
+      <tr><td>M11</td><td>Failure taxonomy harness</td><td class="s-todo">Planned</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section id="roadmap">
+  <h2>The program</h2>
+  <p>The reference implementation ships first as the load-bearing systems result. GovernanceBench — a runtime-agnostic benchmark — is built in parallel so that any governance system can be scored the same way. Later theory extends the frozen foundations rather than replacing them.</p>
+  <div class="cards">
+    <div class="card"><h3>Foundations v1</h3><p>Entities, governance state, axioms, action semantics, delegation, safety theorems. Frozen.</p></div>
+    <div class="card"><h3>Reference implementation</h3><p>A concrete realization of the decision function, validated against the theorems.</p></div>
+    <div class="card"><h3>GovernanceBench</h3><p>Abstract scenarios any system can be scored on. Imports nothing from the implementation.</p></div>
+    <div class="card"><h3>Open problems</h3><p>Delegation algebra, agent identity under cloning, governance complexity, temporal and cross-system governance.</p></div>
+  </div>
+</section>
+
+<section id="get">
+  <h2>Explore</h2>
+  <p>
+    <a class="btn" href="https://github.com/sahinraj/Computational-Governance-AI">View on GitHub</a>
+    <a class="btn alt" href="https://github.com/sahinraj/Computational-Governance-AI/blob/main/spec/foundations.md">Read Foundations v1</a>
+  </p>
+</section>
+
+<footer>
+  <p>Apache-2.0 licensed. Early-stage research. </p>
+</footer>
+
+</div>
+</body>
+</html>
