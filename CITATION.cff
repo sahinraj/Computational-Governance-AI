@@ -1,0 +1,14 @@
+cff-version: 1.2.0
+message: "If you use this work, please cite it as below."
+title: "Computational Governance for Autonomous Systems"
+authors:
+  - family-names: Raj
+    given-names: Sahin
+date-released: 2026-08-05
+version: 0.1.0
+license: Apache-2.0
+abstract: >
+  A formal model, reference implementation, and runtime-agnostic benchmark
+  for runtime governance of autonomous systems: deciding whether an agent's
+  intended action is permitted before execution, accounting for delegated
+  authority, human escalation, revocation, and runtime context change.
