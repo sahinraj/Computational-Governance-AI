@@ -1,28 +1,53 @@
-# Publishing this repo
+# Repository setup
 
-## 1. Create the repo and push
+The repository is published at:
+
+`https://github.com/sahinraj/Computational-Governance-AI`
+
+## Local development
 
 ```bash
-cd computational-governance      # this folder
-git init
-git add .
-git commit -m "Initial commit: Foundations v1, reference impl M1-M3, GovernanceBench schema"
-git branch -M main
-git remote add origin https://github.com/<you>/computational-governance.git
-git push -u origin main
+git clone https://github.com/sahinraj/Computational-Governance-AI.git
+cd Computational-Governance-AI
+python -m pip install -r requirements-dev.txt
+python -m pytest -q
 ```
 
-## 2. Turn on GitHub Pages
+## GitHub Pages
 
-Repo Settings → Pages → Build and deployment → Source: **GitHub Actions**.
-The included `.github/workflows/pages.yml` deploys `docs/` on every push to main.
-Your site will be at `https://<you>.github.io/computational-governance/`.
+The workflow in `.github/workflows/pages.yml` publishes the static site from `docs/`.
 
-## 3. Fix the placeholder links
+In GitHub, open **Settings → Pages** and set **Build and deployment → Source** to **GitHub Actions**. The intended site URL is:
 
-In `docs/index.html`, replace every `OWNER/REPO` with your `<you>/computational-governance`.
+`https://sahinraj.github.io/Computational-Governance-AI/`
 
-## 4. (Optional) suggested repo metadata
+## Recommended repository metadata
 
-- Description: "A formal model, reference implementation, and runtime-agnostic benchmark for runtime governance of autonomous systems."
-- Topics: `ai-governance`, `autonomous-agents`, `policy-as-code`, `formal-methods`, `agent-safety`, `benchmark`
+**Description**
+
+A formal model, reference implementation, and runtime-agnostic benchmark for runtime governance of autonomous systems.
+
+**Website**
+
+`https://sahinraj.github.io/Computational-Governance-AI/`
+
+**Topics**
+
+- `ai-governance`
+- `autonomous-agents`
+- `agentic-ai`
+- `policy-as-code`
+- `formal-methods`
+- `agent-safety`
+- `multi-agent-systems`
+- `benchmark`
+- `python`
+- `runtime-security`
+
+## Branch and contribution policy
+
+- `main` should remain runnable.
+- Implement one numbered milestone per branch and pull request.
+- Add acceptance tests before marking a milestone complete.
+- Foundations v1 changes require implementation evidence, semantic ambiguity, or reviewer evidence.
+- GovernanceBench must remain independent of the reference implementation.
