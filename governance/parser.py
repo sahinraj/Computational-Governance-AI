@@ -12,12 +12,14 @@ Concrete syntax (a Law denotes a Rule in the model). Example:
 
 Design choice recorded (spec Sec. 12): a small line-based DSL, not YAML,
 so the grammar is explicit and errors point at a line. Predicates support
-a minimal comparison form over params: `<field> <op> <number>`.
+a minimal comparison form over action, actor, and context fields:
+`<field> <op> <number|string>`.
 """
 
 from __future__ import annotations
 
 import operator
+import shlex
 
 from .model import Capability, Disposition
 from .rule import PredicateSpec, Rule
@@ -36,15 +38,37 @@ _OPS = {
 }
 
 
-def _make_predicate(field_name: str, op_symbol: str, threshold: float):
+def _field_value(field_name: str, actor, params, context):
+    if field_name in params:
+        return params[field_name]
+    if field_name in ("budget_used", "context.budget_used"):
+        return context.budget_used
+    if field_name in ("now", "context.now"):
+        return context.now
+    if field_name in ("prior_approvals_count", "context.prior_approvals_count"):
+        return len(context.prior_approvals)
+    if field_name in ("actor.class", "actor.cls"):
+        return actor.cls
+    if field_name == "actor.authority_level":
+        return actor.authority_level
+    if field_name == "actor.id":
+        return actor.id
+    return None
+
+
+def _make_predicate(field_name: str, op_symbol: str, threshold: object):
     op = _OPS[op_symbol]
 
     def predicate(actor, params, context):
-        if field_name not in params:
-            # A predicate over a field the action doesn't supply is treated
-            # as unsatisfiable: the rule cannot confirm permission, so deny.
+        value = _field_value(field_name, actor, params, context)
+        if value is None:
+            # A predicate over a field the action/state doesn't supply is
+            # unsatisfiable: the rule cannot confirm permission, so deny.
             return False
-        return op(params[field_name], threshold)
+        try:
+            return op(value, threshold)
+        except (TypeError, ValueError):
+            return False
 
     predicate.__doc__ = f"{field_name} {op_symbol} {threshold}"
     return predicate, PredicateSpec(field_name, op_symbol, threshold)
@@ -61,16 +85,23 @@ def _parse_authority(value: str, line_no: int) -> int:
 
 
 def _parse_constraint(value: str, line_no: int):
-    parts = value.strip().split()
+    try:
+        parts = shlex.split(value.strip())
+    except ValueError as exc:
+        raise ParseError(line_no, f"invalid constraint quoting: {exc}") from exc
     if len(parts) != 3:
-        raise ParseError(line_no, f"constraint must be '<field> <op> <number>', got {value!r}")
+        raise ParseError(line_no, f"constraint must be '<field> <op> <number|string>', got {value!r}")
     field_name, op_symbol, rhs = parts
     if op_symbol not in _OPS:
         raise ParseError(line_no, f"unknown operator {op_symbol!r}")
     try:
         threshold = float(rhs)
+        if threshold.is_integer():
+            threshold = int(threshold)
     except ValueError:
-        raise ParseError(line_no, f"constraint RHS must be numeric, got {rhs!r}")
+        if not rhs:
+            raise ParseError(line_no, "constraint RHS cannot be empty")
+        threshold = rhs
     return _make_predicate(field_name, op_symbol, threshold)
 
 

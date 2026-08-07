@@ -1,0 +1,49 @@
+{
+  "cases": [
+    {
+      "case_id": "FAIL-001",
+      "category": "authority_leakage",
+      "contained": true,
+      "decision": "Block",
+      "detected": true,
+      "executed": false,
+      "log": [
+        "delegated authority is missing, expired, or revoked"
+      ]
+    },
+    {
+      "case_id": "FAIL-002",
+      "category": "delegation_loops",
+      "contained": true,
+      "decision": "Block",
+      "detected": true,
+      "executed": false,
+      "log": [
+        "delegation cycle rejected: second -> first"
+      ]
+    },
+    {
+      "case_id": "FAIL-003",
+      "category": "escalation_deadlock",
+      "contained": true,
+      "decision": "Escalate",
+      "detected": true,
+      "executed": false,
+      "log": [
+        "escalated by LAW-FAIL-003 to ReleaseManager",
+        "no approval handler; execution suspended"
+      ]
+    },
+    {
+      "case_id": "FAIL-004",
+      "category": "capability_taxonomy_gaps",
+      "contained": true,
+      "decision": "Block",
+      "detected": true,
+      "executed": false,
+      "log": [
+        "no applicable rule; default-deny policy"
+      ]
+    }
+  ]
+}

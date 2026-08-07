@@ -126,16 +126,17 @@ rules[0].evaluate(action, Context())   # Result.VIOLATED</code></pre>
       <tr><td>M6</td><td>Interceptor, shadow mode</td><td class="s-done">Done</td></tr>
       <tr><td>M7</td><td>Delegation graph</td><td class="s-done">Done</td></tr>
       <tr><td>M8</td><td>Enforce mode + escalation</td><td class="s-done">Done</td></tr>
-      <tr><td>M9</td><td>GovernanceBench dataset</td><td class="s-todo">Planned</td></tr>
-      <tr><td>M10</td><td>Evaluation vs static baseline</td><td class="s-todo">Planned</td></tr>
-      <tr><td>M11</td><td>Failure taxonomy harness</td><td class="s-todo">Planned</td></tr>
+      <tr><td>M9</td><td>GovernanceBench dataset</td><td class="s-done">Done</td></tr>
+      <tr><td>M10</td><td>Evaluation vs static baseline</td><td class="s-done">Done</td></tr>
+      <tr><td>M11</td><td>Failure taxonomy harness</td><td class="s-done">Done</td></tr>
     </tbody>
   </table>
+  <p class="muted">GovernanceBench v0.1 contains 10 canonical scenarios and 13 trace steps. The reference implementation scores 13/13 exact decisions; a static baseline scores 7/13, with separation on delegation, context change, revocation, and multi-agent cases.</p>
 </section>
 
 <section id="roadmap">
   <h2>The program</h2>
-  <p>The reference implementation ships first as the load-bearing systems result. GovernanceBench — a runtime-agnostic benchmark — is built in parallel so that any governance system can be scored the same way. Later theory extends the frozen foundations rather than replacing them.</p>
+  <p>The reference implementation and initial benchmark now complete the first release. GovernanceBench is runtime-agnostic, with a reproducible static-baseline comparison and failure-containment harness. Later theory extends the frozen foundations rather than replacing them.</p>
   <div class="cards">
     <div class="card"><h3>Foundations v1</h3><p>Entities, governance state, axioms, action semantics, delegation, safety theorems. Frozen.</p></div>
     <div class="card"><h3>Reference implementation</h3><p>A concrete realization of the decision function, validated against the theorems.</p></div>

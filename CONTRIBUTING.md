@@ -17,4 +17,11 @@ python -m pytest -q
 
 ## Adding a GovernanceBench scenario
 
-Use the schema in `governancebench/schema.py`. Each scenario needs a stable id, a category, abstract rules, actors, an optional setup (delegations/prior state), and a trace whose steps carry the expected decision and the rule each tests.
+Use the schema in `governancebench/schema.py` and validate the dataset with
+`python -m evaluation.run_benchmark --check`. Each scenario needs a stable id,
+one of the ten declared categories, abstract rule definitions, actors with
+explicit intrinsic capabilities where relevant, optional setup (delegations or
+prior state), and a trace whose steps carry the expected decision, expected
+escalation role where applicable, and the rule each tests. The benchmark
+package must remain independent of `governance/`; reference-specific adapters
+belong in `evaluation/`.

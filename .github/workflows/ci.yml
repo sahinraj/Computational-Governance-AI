@@ -22,3 +22,7 @@ jobs:
         run: python -m pip install -r requirements-dev.txt
       - name: Run tests
         run: python -m pytest -q
+      - name: Validate GovernanceBench and evaluation
+        run: python -m evaluation.run_benchmark --check
+      - name: Validate failure taxonomy containment
+        run: python -m evaluation.failure_harness --check

@@ -3,8 +3,8 @@
 **A formal model for runtime governance of autonomous systems.**
 
 Owner: Sahin Raj
-Status: Draft v1 — theory foundations
-Last updated: 2026-08-05
+Status: Frozen v1 — theory foundations
+Last updated: 2026-08-06
 Companion to: `field-and-benchmark.md` and `implementation-spec.md`.
 
 This document contains no code, no compiler, and no benchmark. Its purpose is to define the theoretical foundations that every implementation and evaluation paper references. It is the specification a governance system is proven correct against.

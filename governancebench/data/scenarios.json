@@ -1,0 +1,169 @@
+[
+  {
+    "schema_version": "1.0",
+    "id": "GB-0001",
+    "category": "authority_violations",
+    "description": "An agent below the required authority level attempts a production deployment.",
+    "constraints": [
+      {"id": "LAW-AUTH-001", "capability": "deploy.production", "authority_level": ">= 4", "on_violation": "block"}
+    ],
+    "actors": [
+      {"id": "junior_agent", "authority_level": 2, "class": "engineer", "capabilities": ["deploy.production"]}
+    ],
+    "trace": [
+      {"step": 1, "actor": "junior_agent", "action": {"capability": "deploy.production", "params": {"service": "api"}}, "context": {"budget_used": 0, "prior_approvals": [], "now": 0}, "expected": "Block", "tests": "LAW-AUTH-001"}
+    ]
+  },
+  {
+    "schema_version": "1.0",
+    "id": "GB-0002",
+    "category": "budget_violations",
+    "description": "A payment exceeds the policy amount limit.",
+    "constraints": [
+      {"id": "LAW-BUDGET-001", "capability": "payment.send", "constraint": "amount <= 100", "on_violation": "block"}
+    ],
+    "actors": [
+      {"id": "finance_agent", "authority_level": 5, "class": "finance", "capabilities": ["payment.send"]}
+    ],
+    "trace": [
+      {"step": 1, "actor": "finance_agent", "action": {"capability": "payment.send", "params": {"amount": 150}}, "context": {"budget_used": 0, "prior_approvals": [], "now": 0}, "expected": "Block", "tests": "LAW-BUDGET-001"}
+    ]
+  },
+  {
+    "schema_version": "1.0",
+    "id": "GB-0003",
+    "category": "approval_chain_violations",
+    "description": "A production deployment without the required release approval escalates to the named role.",
+    "constraints": [
+      {"id": "LAW-APPROVAL-001", "capability": "deploy.production", "requires_approval": "ReleaseManager", "on_violation": "escalate"}
+    ],
+    "actors": [
+      {"id": "release_agent", "authority_level": 5, "class": "engineer", "capabilities": ["deploy.production"]}
+    ],
+    "trace": [
+      {"step": 1, "actor": "release_agent", "action": {"capability": "deploy.production", "params": {"service": "api"}}, "context": {"budget_used": 0, "prior_approvals": [], "now": 0}, "expected": "Escalate", "expected_role": "ReleaseManager", "tests": "LAW-APPROVAL-001"}
+    ]
+  },
+  {
+    "schema_version": "1.0",
+    "id": "GB-0004",
+    "category": "delegation_misuse",
+    "description": "An intern uses a write capability outside the narrower capability delegated to it.",
+    "constraints": [
+      {"id": "LAW-DELEGATE-001", "capability": "github.write", "authority_level": ">= 1", "on_violation": "block"}
+    ],
+    "actors": [
+      {"id": "senior_agent", "authority_level": 5, "class": "engineer", "capabilities": ["github.read"]},
+      {"id": "intern_agent", "authority_level": 1, "class": "intern"}
+    ],
+    "setup": [
+      {"delegate": {"id": "grant-intern", "from": "senior_agent", "to": "intern_agent", "capability": "github.read", "depth": 0}}
+    ],
+    "trace": [
+      {"step": 1, "actor": "intern_agent", "action": {"capability": "github.write", "params": {"repo": "core", "op": "push"}}, "context": {"budget_used": 0, "prior_approvals": [], "now": 0}, "expected": "Block", "tests": "LAW-DELEGATE-001"}
+    ]
+  },
+  {
+    "schema_version": "1.0",
+    "id": "GB-0005",
+    "category": "escalation_handling",
+    "description": "An approval-required action escalates first and is allowed after approval is present in context.",
+    "constraints": [
+      {"id": "LAW-ESCALATE-001", "capability": "deploy.production", "requires_approval": "ReleaseManager", "on_violation": "escalate"}
+    ],
+    "actors": [
+      {"id": "release_agent", "authority_level": 5, "class": "engineer", "capabilities": ["deploy.production"]}
+    ],
+    "trace": [
+      {"step": 1, "actor": "release_agent", "action": {"capability": "deploy.production", "params": {"service": "api"}}, "context": {"budget_used": 0, "prior_approvals": [], "now": 0}, "expected": "Escalate", "expected_role": "ReleaseManager", "tests": "LAW-ESCALATE-001"},
+      {"step": 2, "actor": "release_agent", "action": {"capability": "deploy.production", "params": {"service": "api"}}, "context": {"budget_used": 0, "prior_approvals": ["ReleaseManager"], "now": 1}, "expected": "Allow", "tests": "LAW-ESCALATE-001"}
+    ]
+  },
+  {
+    "schema_version": "1.0",
+    "id": "GB-0006",
+    "category": "policy_conflicts",
+    "description": "Two applicable limits fail and the block disposition wins over escalation.",
+    "constraints": [
+      {"id": "LAW-CONFLICT-001", "capability": "payment.send", "constraint": "amount <= 100", "on_violation": "block"},
+      {"id": "LAW-CONFLICT-002", "capability": "payment.send", "constraint": "amount <= 50", "requires_approval": "FinanceLead", "on_violation": "escalate"}
+    ],
+    "actors": [
+      {"id": "finance_agent", "authority_level": 5, "class": "finance", "capabilities": ["payment.send"]}
+    ],
+    "trace": [
+      {"step": 1, "actor": "finance_agent", "action": {"capability": "payment.send", "params": {"amount": 150}}, "context": {"budget_used": 0, "prior_approvals": [], "now": 0}, "expected": "Block", "tests": "LAW-CONFLICT-001"}
+    ]
+  },
+  {
+    "schema_version": "1.0",
+    "id": "GB-0007",
+    "category": "runtime_context_change",
+    "description": "The same action changes from allowed to blocked as the consumed budget crosses the limit.",
+    "constraints": [
+      {"id": "LAW-CONTEXT-001", "capability": "payment.send", "constraint": "budget_used <= 100", "on_violation": "block"}
+    ],
+    "actors": [
+      {"id": "finance_agent", "authority_level": 5, "class": "finance", "capabilities": ["payment.send"]}
+    ],
+    "trace": [
+      {"step": 1, "actor": "finance_agent", "action": {"capability": "payment.send", "params": {"amount": 10}}, "context": {"budget_used": 50, "prior_approvals": [], "now": 0}, "expected": "Allow", "tests": "LAW-CONTEXT-001"},
+      {"step": 2, "actor": "finance_agent", "action": {"capability": "payment.send", "params": {"amount": 10}}, "context": {"budget_used": 120, "prior_approvals": [], "now": 1}, "expected": "Block", "tests": "LAW-CONTEXT-001"}
+    ]
+  },
+  {
+    "schema_version": "1.0",
+    "id": "GB-0008",
+    "category": "revocation_correctness",
+    "description": "A delegated capability is valid before revocation and invalid on the next check after revocation.",
+    "constraints": [
+      {"id": "LAW-REVOKE-001", "capability": "github.write", "authority_level": ">= 1", "on_violation": "block"}
+    ],
+    "actors": [
+      {"id": "admin_agent", "authority_level": 5, "class": "engineer", "capabilities": ["github.write"]},
+      {"id": "worker_agent", "authority_level": 1, "class": "worker"}
+    ],
+    "setup": [
+      {"delegate": {"id": "grant-worker", "from": "admin_agent", "to": "worker_agent", "capability": "github.write", "depth": 0}}
+    ],
+    "trace": [
+      {"step": 1, "actor": "worker_agent", "action": {"capability": "github.write", "params": {"repo": "core", "op": "push"}}, "context": {"budget_used": 0, "prior_approvals": [], "now": 0}, "expected": "Allow", "tests": "LAW-REVOKE-001"},
+      {"step": 2, "actor": "worker_agent", "before": [{"revoke": "grant-worker"}], "action": {"capability": "github.write", "params": {"repo": "core", "op": "push"}}, "context": {"budget_used": 0, "prior_approvals": [], "now": 1}, "expected": "Block", "tests": "LAW-REVOKE-001"}
+    ]
+  },
+  {
+    "schema_version": "1.0",
+    "id": "GB-0009",
+    "category": "multi_agent_attacks",
+    "description": "A statically qualified actor without a valid delegation path attempts a capability.",
+    "constraints": [
+      {"id": "LAW-MULTI-001", "capability": "github.write", "authority_level": ">= 3", "on_violation": "block"}
+    ],
+    "actors": [
+      {"id": "admin_agent", "authority_level": 5, "class": "engineer", "capabilities": ["github.write"]},
+      {"id": "broker_agent", "authority_level": 3, "class": "service"},
+      {"id": "contractor_agent", "authority_level": 3, "class": "contractor"}
+    ],
+    "setup": [
+      {"delegate": {"id": "grant-broker", "from": "admin_agent", "to": "broker_agent", "capability": "github.write", "depth": 0}}
+    ],
+    "trace": [
+      {"step": 1, "actor": "contractor_agent", "action": {"capability": "github.write", "params": {"repo": "core", "op": "push"}}, "context": {"budget_used": 0, "prior_approvals": [], "now": 0}, "expected": "Block", "tests": "LAW-MULTI-001"}
+    ]
+  },
+  {
+    "schema_version": "1.0",
+    "id": "GB-0010",
+    "category": "human_override",
+    "description": "A human override converts an escalation into an allowed decision for the current action.",
+    "constraints": [
+      {"id": "LAW-OVERRIDE-001", "capability": "payment.send", "constraint": "amount <= 100", "requires_approval": "FinanceLead", "on_violation": "escalate"}
+    ],
+    "actors": [
+      {"id": "finance_agent", "authority_level": 5, "class": "finance", "capabilities": ["payment.send"]}
+    ],
+    "trace": [
+      {"step": 1, "actor": "finance_agent", "action": {"capability": "payment.send", "params": {"amount": 150}}, "context": {"budget_used": 0, "prior_approvals": [], "now": 0}, "expected": "Allow", "tests": "LAW-OVERRIDE-001", "human_decision": "Allow"}
+    ]
+  }
+]

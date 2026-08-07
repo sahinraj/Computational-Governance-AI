@@ -4,7 +4,9 @@
 
 A formal model, a reference implementation, and a runtime-agnostic benchmark for deciding whether an autonomous agent's intended action is permitted **before it executes** — accounting for delegated authority, human escalation, revocation, and runtime context change.
 
-This is early-stage research. The theory is frozen at **Foundations v1**; the implementation is building milestone by milestone against it.
+The theory is frozen at **Foundations v1**. The reference implementation and
+initial GovernanceBench release now complete milestones M1–M11; the benchmark
+is intentionally small and hand-authored so its labels remain auditable.
 
 ---
 
@@ -28,8 +30,10 @@ subject to rule soundness, delegation validity, escalation totality, and context
 
 ```
 governance/        reference implementation of 𝒢
-governancebench/   runtime-agnostic benchmark schema (imports nothing from governance/)
+governancebench/   runtime-agnostic benchmark schema, dataset, and scorer
+evaluation/        reference adapter, static baseline, and reproducible runners
 tests/             acceptance checks, one set per milestone
+reports/           reproducible benchmark and failure-taxonomy outputs
 spec/
   foundations.md          formal model (FROZEN v1): entities, state, axioms, semantics, theorems
   field-and-benchmark.md  field positioning + GovernanceBench spec
@@ -49,9 +53,9 @@ docs/              GitHub Pages site
 | M6 | Interceptor, shadow mode | ✅ |
 | M7 | Delegation graph | ✅ |
 | M8 | Enforce mode + escalation | ✅ |
-| M9 | GovernanceBench dataset | ▫️ |
-| M10 | Evaluation vs static baseline | ▫️ |
-| M11 | Failure taxonomy harness | ▫️ |
+| M9 | GovernanceBench dataset | ✅ |
+| M10 | Evaluation vs static baseline | ✅ |
+| M11 | Failure taxonomy harness | ✅ |
 
 ## Quickstart
 
@@ -60,6 +64,8 @@ git clone https://github.com/sahinraj/Computational-Governance-AI.git
 cd Computational-Governance-AI
 python -m pip install -r requirements-dev.txt
 python -m pytest -q
+python -m evaluation.run_benchmark --check
+python -m evaluation.failure_harness --check
 ```
 
 Parse a policy and evaluate a rule:
@@ -80,6 +86,19 @@ action = Action(Actor("agent-1", authority_level=5),
 
 print(rules[0].evaluate(action, Context()))   # Result.VIOLATED
 ```
+
+The benchmark and failure harness are standard-library runners:
+
+```bash
+python -m evaluation.run_benchmark
+python -m evaluation.failure_harness
+```
+
+The initial benchmark contains 10 canonical scenarios across 10 categories and
+13 labeled trace steps. The reference implementation scores 1.0 exact
+accuracy; the static baseline scores 0.5385 (7/13), with the required separation on
+delegation, runtime context, revocation, and multi-agent cases. Generated JSON
+artifacts live in `reports/`.
 
 ## Design commitments
 

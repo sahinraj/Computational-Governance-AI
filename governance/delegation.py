@@ -29,6 +29,7 @@ class Grant:
     depth: int
     expires_at: Optional[float] = None
     parent_grant_id: Optional[str] = None
+    granting_rule_id: Optional[str] = None
 
 
 class DelegationGraph:
@@ -71,6 +72,24 @@ class DelegationGraph:
         ]
         return min(candidates, key=lambda grant: grant.id) if candidates else None
 
+    def _actor_reachable(self, start: str, target: str, now: float) -> bool:
+        """Return whether an active delegation path reaches ``target``."""
+        pending = [start]
+        visited: set[str] = set()
+        while pending:
+            current = pending.pop()
+            if current == target:
+                return True
+            if current in visited:
+                continue
+            visited.add(current)
+            pending.extend(
+                grant.to_actor
+                for grant in self._grants.values()
+                if grant.from_actor == current and self._valid_grant(grant, now)
+            )
+        return False
+
     def grant(
         self,
         grantor: Actor | str,
@@ -81,6 +100,7 @@ class DelegationGraph:
         depth: int = 0,
         expires_at: Optional[float] = None,
         now: float = 0.0,
+        granting_rule_id: Optional[str] = None,
     ) -> Grant:
         if depth < 0:
             raise DelegationError("grant depth cannot be negative")
@@ -88,6 +108,11 @@ class DelegationGraph:
         grantor_id = _actor_id(grantor)
         if isinstance(grantor, Actor):
             self._intrinsic.setdefault(grantor_id, set()).update(grantor.capabilities)
+        grantee_id = _actor_id(grantee)
+        if self._actor_reachable(grantee_id, grantor_id, now):
+            raise DelegationError(
+                f"delegation cycle rejected: {grantor_id} -> {grantee_id}"
+            )
         parent_id = None
         if not self._intrinsic_has(grantor_id, source):
             parent = self._source_grant(grantor_id, source, now)
@@ -107,11 +132,12 @@ class DelegationGraph:
         grant = Grant(
             id=grant_id,
             from_actor=grantor_id,
-            to_actor=_actor_id(grantee),
+            to_actor=grantee_id,
             capability=source,
             depth=depth,
             expires_at=expires_at,
             parent_grant_id=parent_id,
+            granting_rule_id=granting_rule_id,
         )
         self._grants[grant_id] = grant
         return grant

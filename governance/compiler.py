@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from typing import Iterable, Optional
 
 from .composition import evaluate_rules, inherit_rules, validate_inheritance_graph
-from .model import Action, Context, Decision
+from .model import Action, Context, Decision, DecisionKind
 from .parser import parse_laws
 from .rule import Rule
 
@@ -47,9 +47,20 @@ class CompiledPolicy:
 
     rules: tuple[Rule, ...]
     roles: frozenset[str] = frozenset()
+    default_decision: DecisionKind = DecisionKind.ALLOW
 
     def evaluate(self, action: Action, context: Context, delegation=None) -> Decision:
-        return evaluate_rules(self.rules, action, context, delegation=delegation)
+        decision = evaluate_rules(self.rules, action, context, delegation=delegation)
+        if (
+            decision.kind is DecisionKind.ALLOW
+            and not decision.matched_rules
+            and self.default_decision is DecisionKind.BLOCK
+        ):
+            return Decision(
+                DecisionKind.BLOCK,
+                reason="no applicable rule; default-deny policy",
+            )
+        return decision
 
 
 def compile_policy(
@@ -57,6 +68,7 @@ def compile_policy(
     *,
     roles: Optional[Iterable[str]] = None,
     parent_rules: Iterable[Rule] = (),
+    default_decision: DecisionKind | str = DecisionKind.ALLOW,
 ) -> CompiledPolicy:
     """Parse, validate, and compile a policy source or already parsed rules.
 
@@ -69,6 +81,15 @@ def compile_policy(
         else source_or_rules
     )
     role_set = None if roles is None else set(roles)
+    try:
+        default = DecisionKind(default_decision)
+    except ValueError as exc:
+        raise CompileError(
+            "invalid_default_decision",
+            f"unknown default decision {default_decision!r}",
+        ) from exc
+    if default is DecisionKind.ESCALATE:
+        raise CompileError("invalid_default_decision", "default decision cannot be Escalate")
     if parent_rules:
         rules = inherit_rules(tuple(parent_rules), rules)
     try:
@@ -80,7 +101,11 @@ def compile_policy(
             code = "dangling_parent"
         raise CompileError(code, message) from exc
     _validate_rules(rules, role_set)
-    return CompiledPolicy(rules=rules, roles=frozenset(role_set or ()))
+    return CompiledPolicy(
+        rules=rules,
+        roles=frozenset(role_set or ()),
+        default_decision=default,
+    )
 
 
 compile_laws = compile_policy

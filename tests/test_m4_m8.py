@@ -140,6 +140,14 @@ def test_compiler_emits_deterministic_policy_artifact():
     assert policy.evaluate(_action(), Context()).kind is DecisionKind.ALLOW
 
 
+def test_compiler_supports_explicit_default_deny():
+    policy = _policy("LAW-1\n  capability: payment.send\n", roles=None)
+    strict = compile_policy("LAW-1\n  capability: payment.send\n", default_decision="Block")
+    action = _action("unclassified.action")
+    assert policy.evaluate(action, Context()).kind is DecisionKind.ALLOW
+    assert strict.evaluate(action, Context()).kind is DecisionKind.BLOCK
+
+
 def test_compiler_validates_parent_links_in_one_source():
     policy = _policy("""
 LAW-P
@@ -218,6 +226,17 @@ def test_delegation_rejects_excess_depth_and_expiry():
     assert graph.has_authority(worker, "github.write", now=9) is True
     assert graph.has_authority(worker, "github.write", now=10) is False
     assert grant.id in graph.expire(10)
+
+
+def test_delegation_rejects_actor_cycles():
+    admin = Actor("admin", 5, capabilities={"github.write"})
+    first = Actor("first", 3)
+    second = Actor("second", 3)
+    graph = DelegationGraph()
+    graph.grant(admin, first, "github.write", depth=2)
+    graph.grant(first, second, "github.write", depth=1)
+    with pytest.raises(DelegationError, match="cycle"):
+        graph.grant(second, first, "github.write", depth=0)
 
 
 # M8 — enforce mode and escalation

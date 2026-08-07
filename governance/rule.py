@@ -28,7 +28,7 @@ class Result(str, Enum):
 
 @dataclass(frozen=True)
 class PredicateSpec:
-    """The declarative shape of a parser-created numeric predicate.
+    """The declarative shape of a parser-created comparison predicate.
 
     Keeping this small piece of AST metadata beside the callable lets M4/M5
     prove simple inheritance relationships without inspecting function code.
@@ -36,7 +36,7 @@ class PredicateSpec:
 
     field_name: str
     operator: str
-    threshold: float
+    threshold: object
 
 
 @dataclass(frozen=True)

@@ -127,6 +127,28 @@ def test_constraint_missing_field_denies():
     assert r.evaluate(a, CTX) is Result.VIOLATED
 
 
+def test_constraints_can_read_context_and_actor_fields():
+    context_rule = _rule("LAW-1\n  capability: payment.send\n  constraint: budget_used <= 100\n")
+    assert context_rule.evaluate(
+        Action(Actor("a", 5), Capability("payment.send")),
+        Context(budget_used=50),
+    ) is Result.SATISFIED
+    assert context_rule.evaluate(
+        Action(Actor("a", 5), Capability("payment.send")),
+        Context(budget_used=101),
+    ) is Result.VIOLATED
+
+    class_rule = _rule('LAW-1\n  capability: github.write\n  constraint: actor.class != "intern"\n')
+    assert class_rule.evaluate(
+        Action(Actor("a", 5, cls="engineer"), Capability("github.write")),
+        CTX,
+    ) is Result.SATISFIED
+    assert class_rule.evaluate(
+        Action(Actor("i", 5, cls="intern"), Capability("github.write")),
+        CTX,
+    ) is Result.VIOLATED
+
+
 def test_determinism_repeated_evaluation():
     # T6 sanity at the single-rule level: same inputs, same result, every time.
     r = _rule("LAW-1\n  capability: payment.send\n  constraint: amount <= 100\n")

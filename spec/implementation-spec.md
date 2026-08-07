@@ -3,8 +3,8 @@
 **A policy language and compiler that enforces organizational rules on autonomous agents at runtime.**
 
 Owner: Sahin Raj
-Status: Draft v1 — reference implementation target
-Last updated: 2026-08-05
+Status: Reference implementation v0.1 — M1–M11 complete
+Last updated: 2026-08-06
 
 ---
 
@@ -26,7 +26,7 @@ The gap is a way to express organizational authority and obligation in a form th
 
 Three linked components:
 
-1. **A formal policy language.** Composable, inheritable laws with authority levels, capabilities, budgets, delegation constraints, and required human approvals.
+1. **A formal policy language.** Composable, inheritable laws with authority levels, capabilities, context predicates, and required human approvals. Delegation constraints are enforced by the separate delegation graph API.
 2. **A compiler.** Translates the language into an enforcement artifact.
 3. **A runtime interceptor.** Sits between an agent and its tools. Every intended action is checked and allowed, blocked, or escalated before it executes.
 
@@ -73,32 +73,32 @@ A law has:
 - `authority_level` — integer rank the actor must hold
 - `capability` — governed action class such as `payment.send`, `deploy.production`, or `github.write`
 - `constraint` — condition that must hold, such as `amount <= 100`
-- `delegation` — whether authority may be passed and to what depth
+- `constraint` — comparison over action parameters, actor fields, or context (`budget_used`, `now`, and approval count)
+- `forbidden_classes` — actor classes that may never exercise the capability
+- `parent` — optional inherited rule id
 - `requires_approval` — human role that must approve before execution
 - `on_violation` — `block` or `escalate`
 
-Illustrative syntax:
+Implemented syntax:
 
 ```text
 LAW-001
   capability: payment.send
   authority_level: >= 3
   constraint: amount <= 100
-  delegation: prohibited
-  requires_approval: FinanceLead when amount > 50
+  requires_approval: FinanceLead
   on_violation: escalate
 
 LAW-014
   capability: deploy.production
   authority_level: >= 4
-  requires_approval: [ReviewerA, ReviewerB]
-  delegation: prohibited
+  parent: LAW-001
   on_violation: block
 
 LAW-022
   capability: github.write
   authority_level: >= 2
-  constraint: actor.class != "intern"
+  forbidden_classes: intern
   on_violation: block
 ```
 
@@ -113,14 +113,14 @@ Semantics to define precisely:
 
 ### Compiler
 
-Parse source into an AST or intermediate representation, validate it, and emit an enforcement artifact consisting of a deterministic decision function and delegation graph. Validation includes contradictions and dangling roles.
+Parse source into structured rules, validate it, and emit an immutable enforcement artifact consisting of a deterministic decision function. Validation includes contradictions, dangling roles, missing parents, inheritance cycles, and an explicit optional default-deny mode for unmatched capabilities. Delegation remains runtime state supplied to the artifact.
 
 ### Interceptor
 
 ```python
-decision = interceptor.check(action, actor, context)
-# action:  { capability, params }
-# actor:   { id, authority_level, class, delegation_chain }
+decision = interceptor.check(action, context)
+# action:  { actor, capability, params }
+# actor:   { id, authority_level, class, capabilities }
 # context: { budget_used, prior_approvals, timestamp }
 # decision: ALLOW | BLOCK | ESCALATE(role) + reason + matched_laws
 ```
@@ -145,12 +145,15 @@ Build labeled action sequences in enterprise domains:
 
 Report precision and recall on interception, escalation accuracy, and per-decision overhead. Compare against at least one static policy baseline and, where useful, a prompt-only guardrail.
 
-Failure classes:
+Failure classes exercised by the M11 harness:
 
 - Authority leakage
 - Delegation loops
 - Escalation deadlock
 - Silent bypass caused by capability-taxonomy gaps
+
+The reference adapter and static baseline live in `evaluation/`; the
+`governancebench/` package imports no reference implementation code.
 
 The benchmark and taxonomy should be reusable artifacts, not one-off test fixtures.
 
@@ -168,7 +171,7 @@ Work in order. Do not proceed until the milestone acceptance check passes.
 - **M8 — Enforce mode.** Decisions become binding and escalation routes to a human-approval stub. *Accept:* violating actions are blocked; approval-required actions pause and resume correctly.
 - **M9 — GovernanceBench dataset.** Build labeled scenarios. *Accept:* every scenario loads and carries the expected decision and tested rule.
 - **M10 — Evaluation run.** Score the implementation and a static baseline. *Accept:* produce a report showing separation on delegation, revocation, and runtime-context cases.
-- **M11 — Failure taxonomy harness.** Inject each failure class. *Accept:* every failure has a reproducible test and logged containment outcome.
+- **M11 — Failure taxonomy harness.** Inject authority leakage, delegation loops, escalation deadlock, and capability-taxonomy gaps. *Accept:* every failure has a reproducible test and logged containment outcome.
 
 ## 9. Definition of done
 
@@ -194,17 +197,21 @@ Prefer deterministic logic in the enforcement path. Enforcement must not depend 
 - [2026-08-05] M1 — repository and pytest harness created; tests run cleanly.
 - [2026-08-05] M2 — line-based policy DSL parser implemented; example laws parse and malformed input raises line-numbered `ParseError`.
 - [2026-08-05] M3 — single-rule semantics implemented for capability applicability, authority, forbidden actor class, and numeric predicates; 13 tests pass including determinism.
-- [2026-08-05] Scope note — runtime-agnostic GovernanceBench schema stubbed in parallel in `governancebench/schema.py`.
+- [2026-08-05] Scope note — initial runtime-agnostic GovernanceBench schema created in parallel in `governancebench/schema.py`.
 - [2026-08-06] M4 — deterministic composition, conflict resolution, and parent-to-child inheritance implemented; child policies cannot loosen validated parent conditions.
 - [2026-08-06] M5 — compiler emits an immutable policy artifact and rejects contradictory rules, dangling roles, missing parents, and inheritance cycles.
 - [2026-08-06] M6 — interceptor supports shadow mode with structured in-memory events and optional logging.
 - [2026-08-06] M7 — delegation graph supports bounded grants, capability scopes, expiry, and transitive revocation.
 - [2026-08-06] M8 — enforce mode blocks violating actions and routes escalation decisions through a synchronous approval stub.
 - [2026-08-06] M4–M8 acceptance suite — 29 tests pass.
+- [2026-08-06] M9 — 10 canonical runtime-agnostic scenarios across all benchmark categories; schema validation and round-trip checks added.
+- [2026-08-06] M10 — reference adapter and static baseline added; reference exact accuracy 1.0 across 13 steps, baseline exact accuracy 0.5385 (7/13) with separation on delegation, context, revocation, and multi-agent categories.
+- [2026-08-06] M11 — four injected failure classes produce reproducible logged containment outcomes; default-deny capability handling and delegation-cycle rejection close the observed bypasses.
 
 ## 12. Open implementation questions
 
 - Concrete syntax: resolved at M2 as a small line-based DSL
 - Capability taxonomy: hierarchical namespace such as `payment.send`
-- Context integration: stub in the reference implementation and document the adapter seam
-- Escalation behavior: synchronous human stub in the reference implementation, with asynchronous continuation left as an integration path
+- Context integration: `Context` fields are implemented; external runtimes provide the adapter that supplies current state.
+- Escalation behavior: synchronous human stub in the reference implementation; asynchronous continuation and multi-reviewer quorum remain integration paths.
+- Benchmark breadth: the first release uses one canonical hand-authored scenario per category; expanding each category to 3–5 scenarios is the next evaluation-quality improvement.

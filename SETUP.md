@@ -11,7 +11,13 @@ git clone https://github.com/sahinraj/Computational-Governance-AI.git
 cd Computational-Governance-AI
 python -m pip install -r requirements-dev.txt
 python -m pytest -q
+python -m evaluation.run_benchmark --check
+python -m evaluation.failure_harness --check
 ```
+
+The benchmark is runtime-agnostic. The reference adapter in `evaluation/`
+exists only to demonstrate one implementation; alternative systems should
+implement the adapter protocol in `governancebench.scoring`.
 
 ## GitHub Pages
 

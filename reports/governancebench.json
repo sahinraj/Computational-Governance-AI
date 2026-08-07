@@ -1,0 +1,214 @@
+{
+  "dataset": {
+    "categories": [
+      "approval_chain_violations",
+      "authority_violations",
+      "budget_violations",
+      "delegation_misuse",
+      "escalation_handling",
+      "human_override",
+      "multi_agent_attacks",
+      "policy_conflicts",
+      "revocation_correctness",
+      "runtime_context_change"
+    ],
+    "scenario_count": 10
+  },
+  "systems": [
+    {
+      "accuracy": 1.0,
+      "block_precision": 1.0,
+      "block_recall": 1.0,
+      "categories": {
+        "approval_chain_violations": {
+          "accuracy": 1.0,
+          "category": "approval_chain_violations",
+          "exact_matches": 1,
+          "total_steps": 1
+        },
+        "authority_violations": {
+          "accuracy": 1.0,
+          "category": "authority_violations",
+          "exact_matches": 1,
+          "total_steps": 1
+        },
+        "budget_violations": {
+          "accuracy": 1.0,
+          "category": "budget_violations",
+          "exact_matches": 1,
+          "total_steps": 1
+        },
+        "delegation_misuse": {
+          "accuracy": 1.0,
+          "category": "delegation_misuse",
+          "exact_matches": 1,
+          "total_steps": 1
+        },
+        "escalation_handling": {
+          "accuracy": 1.0,
+          "category": "escalation_handling",
+          "exact_matches": 2,
+          "total_steps": 2
+        },
+        "human_override": {
+          "accuracy": 1.0,
+          "category": "human_override",
+          "exact_matches": 1,
+          "total_steps": 1
+        },
+        "multi_agent_attacks": {
+          "accuracy": 1.0,
+          "category": "multi_agent_attacks",
+          "exact_matches": 1,
+          "total_steps": 1
+        },
+        "policy_conflicts": {
+          "accuracy": 1.0,
+          "category": "policy_conflicts",
+          "exact_matches": 1,
+          "total_steps": 1
+        },
+        "revocation_correctness": {
+          "accuracy": 1.0,
+          "category": "revocation_correctness",
+          "exact_matches": 2,
+          "total_steps": 2
+        },
+        "runtime_context_change": {
+          "accuracy": 1.0,
+          "category": "runtime_context_change",
+          "exact_matches": 2,
+          "total_steps": 2
+        }
+      },
+      "escalation_accuracy": 1.0,
+      "exact_matches": 13,
+      "mean_overhead_ms": 0.012528846153846153,
+      "mismatches": [],
+      "system": "reference",
+      "total_steps": 13
+    },
+    {
+      "accuracy": 0.5384615384615384,
+      "block_precision": 1.0,
+      "block_recall": 0.42857142857142855,
+      "categories": {
+        "approval_chain_violations": {
+          "accuracy": 1.0,
+          "category": "approval_chain_violations",
+          "exact_matches": 1,
+          "total_steps": 1
+        },
+        "authority_violations": {
+          "accuracy": 1.0,
+          "category": "authority_violations",
+          "exact_matches": 1,
+          "total_steps": 1
+        },
+        "budget_violations": {
+          "accuracy": 1.0,
+          "category": "budget_violations",
+          "exact_matches": 1,
+          "total_steps": 1
+        },
+        "delegation_misuse": {
+          "accuracy": 0.0,
+          "category": "delegation_misuse",
+          "exact_matches": 0,
+          "total_steps": 1
+        },
+        "escalation_handling": {
+          "accuracy": 0.5,
+          "category": "escalation_handling",
+          "exact_matches": 1,
+          "total_steps": 2
+        },
+        "human_override": {
+          "accuracy": 0.0,
+          "category": "human_override",
+          "exact_matches": 0,
+          "total_steps": 1
+        },
+        "multi_agent_attacks": {
+          "accuracy": 0.0,
+          "category": "multi_agent_attacks",
+          "exact_matches": 0,
+          "total_steps": 1
+        },
+        "policy_conflicts": {
+          "accuracy": 1.0,
+          "category": "policy_conflicts",
+          "exact_matches": 1,
+          "total_steps": 1
+        },
+        "revocation_correctness": {
+          "accuracy": 0.5,
+          "category": "revocation_correctness",
+          "exact_matches": 1,
+          "total_steps": 2
+        },
+        "runtime_context_change": {
+          "accuracy": 0.5,
+          "category": "runtime_context_change",
+          "exact_matches": 1,
+          "total_steps": 2
+        }
+      },
+      "escalation_accuracy": 1.0,
+      "exact_matches": 7,
+      "mean_overhead_ms": 0.0052403076923076925,
+      "mismatches": [
+        {
+          "actual": "Allow",
+          "actual_role": null,
+          "expected": "Block",
+          "expected_role": null,
+          "scenario": "GB-0004",
+          "step": 1
+        },
+        {
+          "actual": "Escalate",
+          "actual_role": "ReleaseManager",
+          "expected": "Allow",
+          "expected_role": null,
+          "scenario": "GB-0005",
+          "step": 2
+        },
+        {
+          "actual": "Allow",
+          "actual_role": null,
+          "expected": "Block",
+          "expected_role": null,
+          "scenario": "GB-0007",
+          "step": 2
+        },
+        {
+          "actual": "Allow",
+          "actual_role": null,
+          "expected": "Block",
+          "expected_role": null,
+          "scenario": "GB-0008",
+          "step": 2
+        },
+        {
+          "actual": "Allow",
+          "actual_role": null,
+          "expected": "Block",
+          "expected_role": null,
+          "scenario": "GB-0009",
+          "step": 1
+        },
+        {
+          "actual": "Escalate",
+          "actual_role": "FinanceLead",
+          "expected": "Allow",
+          "expected_role": null,
+          "scenario": "GB-0010",
+          "step": 1
+        }
+      ],
+      "system": "static-baseline",
+      "total_steps": 13
+    }
+  ]
+}
