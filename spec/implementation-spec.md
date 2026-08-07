@@ -195,6 +195,12 @@ Prefer deterministic logic in the enforcement path. Enforcement must not depend 
 - [2026-08-05] M2 — line-based policy DSL parser implemented; example laws parse and malformed input raises line-numbered `ParseError`.
 - [2026-08-05] M3 — single-rule semantics implemented for capability applicability, authority, forbidden actor class, and numeric predicates; 13 tests pass including determinism.
 - [2026-08-05] Scope note — runtime-agnostic GovernanceBench schema stubbed in parallel in `governancebench/schema.py`.
+- [2026-08-06] M4 — deterministic composition, conflict resolution, and parent-to-child inheritance implemented; child policies cannot loosen validated parent conditions.
+- [2026-08-06] M5 — compiler emits an immutable policy artifact and rejects contradictory rules, dangling roles, missing parents, and inheritance cycles.
+- [2026-08-06] M6 — interceptor supports shadow mode with structured in-memory events and optional logging.
+- [2026-08-06] M7 — delegation graph supports bounded grants, capability scopes, expiry, and transitive revocation.
+- [2026-08-06] M8 — enforce mode blocks violating actions and routes escalation decisions through a synchronous approval stub.
+- [2026-08-06] M4–M8 acceptance suite — 29 tests pass.
 
 ## 12. Open implementation questions
 

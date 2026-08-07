@@ -50,6 +50,12 @@ class Actor:
     id: str
     authority_level: int
     cls: str = "agent"  # 'class' is reserved; cls maps to the model's actor class
+    capabilities: frozenset[str] = field(default_factory=frozenset)
+
+    def __post_init__(self):
+        # Accept a normal set/list at the API boundary while keeping the model
+        # immutable and hash-friendly internally.
+        object.__setattr__(self, "capabilities", frozenset(self.capabilities))
 
 
 @dataclass(frozen=True)
@@ -84,3 +90,13 @@ class Context:
     budget_used: float = 0.0
     prior_approvals: tuple[str, ...] = ()
     now: float = 0.0
+
+    def with_approval(self, role: str) -> "Context":
+        """Return the next immutable context after a human approval."""
+        if role in self.prior_approvals:
+            return self
+        return Context(
+            budget_used=self.budget_used,
+            prior_approvals=self.prior_approvals + (role,),
+            now=self.now,
+        )

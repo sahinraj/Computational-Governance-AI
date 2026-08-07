@@ -44,11 +44,11 @@ docs/              GitHub Pages site
 | M1 | Repo and harness | ✅ |
 | M2 | Law parser | ✅ |
 | M3 | Single-rule semantics | ✅ |
-| M4 | Composition and inheritance | ▫️ |
-| M5 | Compiler + validation | ▫️ |
-| M6 | Interceptor, shadow mode | ▫️ |
-| M7 | Delegation graph | ▫️ |
-| M8 | Enforce mode + escalation | ▫️ |
+| M4 | Composition and inheritance | ✅ |
+| M5 | Compiler + validation | ✅ |
+| M6 | Interceptor, shadow mode | ✅ |
+| M7 | Delegation graph | ✅ |
+| M8 | Enforce mode + escalation | ✅ |
 | M9 | GovernanceBench dataset | ▫️ |
 | M10 | Evaluation vs static baseline | ▫️ |
 | M11 | Failure taxonomy harness | ▫️ |

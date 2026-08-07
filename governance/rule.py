@@ -27,6 +27,19 @@ class Result(str, Enum):
 
 
 @dataclass(frozen=True)
+class PredicateSpec:
+    """The declarative shape of a parser-created numeric predicate.
+
+    Keeping this small piece of AST metadata beside the callable lets M4/M5
+    prove simple inheritance relationships without inspecting function code.
+    """
+
+    field_name: str
+    operator: str
+    threshold: float
+
+
+@dataclass(frozen=True)
 class Rule:
     """One governance rule.
 
@@ -44,6 +57,8 @@ class Rule:
     predicate: Optional[object] = None  # Callable[[Actor, dict, Context], bool]
     # forbidden_classes: actor classes that may never exercise this capability.
     forbidden_classes: frozenset = field(default_factory=frozenset)
+    predicate_spec: Optional[PredicateSpec] = None
+    parent_id: Optional[str] = None
 
     def applies_to(self, action: Action) -> Applicability:
         if action.capability.is_descendant_of(self.capability):
@@ -72,4 +87,23 @@ class Rule:
             if not self.predicate(action.actor, action.params, context):
                 return Result.VIOLATED
 
+        # Approval is a rule condition, but the disposition determines whether
+        # missing approval blocks immediately or escalates to the named role.
+        if self.requires_approval and self.requires_approval not in context.prior_approvals:
+            return Result.VIOLATED
+
         return Result.SATISFIED
+
+    def semantic_signature(self) -> tuple:
+        """Return the condition portion of a rule, excluding disposition."""
+        predicate = self.predicate_spec
+        predicate_key = None if predicate is None else (
+            predicate.field_name, predicate.operator, predicate.threshold
+        )
+        return (
+            self.capability.name,
+            self.min_authority,
+            predicate_key,
+            tuple(sorted(self.forbidden_classes)),
+            self.requires_approval,
+        )

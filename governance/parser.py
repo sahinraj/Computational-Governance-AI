@@ -20,7 +20,7 @@ from __future__ import annotations
 import operator
 
 from .model import Capability, Disposition
-from .rule import Rule
+from .rule import PredicateSpec, Rule
 
 
 class ParseError(ValueError):
@@ -47,7 +47,7 @@ def _make_predicate(field_name: str, op_symbol: str, threshold: float):
         return op(params[field_name], threshold)
 
     predicate.__doc__ = f"{field_name} {op_symbol} {threshold}"
-    return predicate
+    return predicate, PredicateSpec(field_name, op_symbol, threshold)
 
 
 def _parse_authority(value: str, line_no: int) -> int:
@@ -90,7 +90,9 @@ def parse_laws(source: str) -> list[Rule]:
             disposition=block.get("disposition", Disposition.BLOCK),
             requires_approval=block.get("requires_approval"),
             predicate=block.get("predicate"),
+            predicate_spec=block.get("predicate_spec"),
             forbidden_classes=frozenset(block.get("forbidden_classes", [])),
+            parent_id=block.get("parent_id"),
         )
 
     for i, raw in enumerate(source.splitlines(), start=1):
@@ -118,7 +120,9 @@ def parse_laws(source: str) -> list[Rule]:
         elif key == "authority_level":
             current["min_authority"] = _parse_authority(value, i)
         elif key == "constraint":
-            current["predicate"] = _parse_constraint(value, i)
+            predicate, predicate_spec = _parse_constraint(value, i)
+            current["predicate"] = predicate
+            current["predicate_spec"] = predicate_spec
         elif key == "forbidden_classes":
             current["forbidden_classes"] = [c.strip() for c in value.split(",") if c.strip()]
         elif key == "requires_approval":
@@ -128,6 +132,8 @@ def parse_laws(source: str) -> list[Rule]:
             if v not in ("block", "escalate"):
                 raise ParseError(i, f"on_violation must be block|escalate, got {value!r}")
             current["disposition"] = Disposition(v)
+        elif key in ("parent", "inherits"):
+            current["parent_id"] = value
         else:
             raise ParseError(i, f"unknown field {key!r}")
 
