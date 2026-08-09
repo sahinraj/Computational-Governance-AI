@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "computational-governance://conformance/decision/1.0",
+  "type": "object",
+  "required": ["protocol_version", "decision", "role", "reason", "matched_rules"],
+  "properties": {
+    "protocol_version": {"const": "1.0"},
+    "decision": {"enum": ["Allow", "Block", "Escalate"]},
+    "role": {"type": ["string", "null"]},
+    "reason": {"type": "string"},
+    "matched_rules": {"type": "array", "items": {"type": "string"}},
+    "authority_source": {"type": "string"},
+    "authority_path": {"type": "array", "items": {"type": "string"}}
+  },
+  "additionalProperties": false
+}

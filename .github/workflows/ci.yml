@@ -24,6 +24,8 @@ jobs:
         run: python -m pytest -q
       - name: Validate GovernanceBench and evaluation
         run: python -m evaluation.run_benchmark --check
+      - name: Validate conformance protocol
+        run: python -m conformance.runner --check
       - name: Validate failure taxonomy containment
         run: python -m evaluation.failure_harness --check
       - name: Validate runtime performance envelope

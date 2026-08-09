@@ -5,7 +5,7 @@
 A formal model, a reference implementation, and a runtime-agnostic benchmark for deciding whether an autonomous agent's intended action is permitted **before it executes** — accounting for delegated authority, human escalation, revocation, and runtime context change.
 
 The theory is frozen at **Foundations v1**. The reference implementation and
-initial GovernanceBench v0.2 release now completes milestones M1–M15; the
+initial GovernanceBench v0.2 release now completes milestones M1–M17; the
 benchmark remains hand-authored so its labels remain auditable.
 
 ---
@@ -61,6 +61,7 @@ docs/              GitHub Pages site
 | M14 | Auditability and deterministic replay | ✅ |
 | M15 | Bounded human approval lifecycle | ✅ |
 | M16 | Runtime adapter and release hardening | ✅ |
+| M17 | Versioned conformance protocol | ✅ |
 
 ## Quickstart
 

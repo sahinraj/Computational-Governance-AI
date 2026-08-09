@@ -13,7 +13,8 @@ authors = [{name = "Sahin Raj"}]
 dependencies = []
 
 [tool.setuptools.packages.find]
-include = ["governance*", "governancebench*", "evaluation*"]
+include = ["governance*", "governancebench*", "evaluation*", "conformance*"]
 
 [tool.setuptools.package-data]
 governancebench = ["data/*.json"]
+conformance = ["fixtures/*.json", "schemas/*.json"]

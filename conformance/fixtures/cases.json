@@ -1,0 +1,62 @@
+[
+  {
+    "case_id": "CONF-ALLOW-001",
+    "tool_call": {
+      "protocol_version": "1.0",
+      "request_id": "CONF-ALLOW-001",
+      "actor": {"id": "agent-1", "authority_level": 5, "class": "engineer", "capabilities": ["payment.send"]},
+      "capability": "payment.send",
+      "params": {"amount": 25},
+      "context": {"budget_used": 0, "prior_approvals": [], "now": 0}
+    },
+    "expected": {
+      "protocol_version": "1.0",
+      "decision": "Allow",
+      "role": null,
+      "reason": "all applicable rules satisfied",
+      "matched_rules": ["LAW-CONF-ALLOW"],
+      "authority_source": "intrinsic",
+      "authority_path": ["actor:agent-1"]
+    }
+  },
+  {
+    "case_id": "CONF-BLOCK-001",
+    "tool_call": {
+      "protocol_version": "1.0",
+      "request_id": "CONF-BLOCK-001",
+      "actor": {"id": "agent-2", "authority_level": 1, "class": "worker", "capabilities": ["deploy.production"]},
+      "capability": "deploy.production",
+      "params": {"service": "payments"},
+      "context": {"budget_used": 0, "prior_approvals": [], "now": 0}
+    },
+    "expected": {
+      "protocol_version": "1.0",
+      "decision": "Block",
+      "role": null,
+      "reason": "authority denied",
+      "matched_rules": ["LAW-CONF-BLOCK"],
+      "authority_source": "intrinsic",
+      "authority_path": ["actor:agent-2"]
+    }
+  },
+  {
+    "case_id": "CONF-ESCALATE-001",
+    "tool_call": {
+      "protocol_version": "1.0",
+      "request_id": "CONF-ESCALATE-001",
+      "actor": {"id": "agent-3", "authority_level": 5, "class": "release", "capabilities": ["deploy.production"]},
+      "capability": "deploy.production",
+      "params": {"service": "payments"},
+      "context": {"budget_used": 0, "prior_approvals": [], "now": 0}
+    },
+    "expected": {
+      "protocol_version": "1.0",
+      "decision": "Escalate",
+      "role": "ReleaseManager",
+      "reason": "approval required",
+      "matched_rules": ["LAW-CONF-ESCALATE"],
+      "authority_source": "intrinsic",
+      "authority_path": ["actor:agent-3"]
+    }
+  }
+]

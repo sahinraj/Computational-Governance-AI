@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "computational-governance://conformance/tool-call/1.0",
+  "type": "object",
+  "required": ["protocol_version", "request_id", "actor", "capability", "params", "context"],
+  "properties": {
+    "protocol_version": {"const": "1.0"},
+    "request_id": {"type": "string", "minLength": 1},
+    "actor": {"type": "object", "required": ["id"]},
+    "capability": {"type": "string", "minLength": 1},
+    "params": {"type": "object"},
+    "context": {"type": "object"}
+  },
+  "additionalProperties": false
+}
