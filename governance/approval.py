@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Optional
+from typing import Any, Optional
 
 from .audit import action_fingerprint, context_fingerprint, policy_fingerprint, state_fingerprint
 from .model import Action, Context, Decision, DecisionKind
@@ -186,3 +186,65 @@ class ApprovalManager:
         self._check_binding(request, policy, action, context, delegation)
         request.consumed = True
         return request
+
+    def snapshot(self) -> dict[str, Any]:
+        """Return a JSON-safe snapshot, including terminal and consumed states."""
+        return {
+            "schema_version": "1.0",
+            "ttl": self.ttl,
+            "request_prefix": self.request_prefix,
+            "next_id": self._next_id,
+            "requests": [
+                request.to_dict()
+                for request in sorted(self._requests.values(), key=lambda item: item.id)
+            ],
+        }
+
+    to_snapshot = snapshot
+
+    @classmethod
+    def from_snapshot(cls, snapshot: dict[str, Any]) -> "ApprovalManager":
+        """Restore approval state without silently accepting unknown lifecycle data."""
+        if not isinstance(snapshot, dict) or snapshot.get("schema_version") != "1.0":
+            raise ApprovalError("unsupported or missing approval snapshot version")
+        try:
+            manager = cls(
+                ttl=float(snapshot["ttl"]),
+                request_prefix=str(snapshot["request_prefix"]),
+            )
+            next_id = snapshot["next_id"]
+            requests = snapshot["requests"]
+        except (KeyError, TypeError, ValueError) as exc:
+            raise ApprovalError("invalid approval snapshot metadata") from exc
+        if not isinstance(next_id, int) or isinstance(next_id, bool) or next_id <= 0:
+            raise ApprovalError("invalid approval snapshot next id")
+        if not isinstance(requests, list):
+            raise ApprovalError("invalid approval snapshot requests")
+        for item in requests:
+            if not isinstance(item, dict):
+                raise ApprovalError("invalid approval request snapshot")
+            try:
+                request = ApprovalRequest(
+                    id=str(item["id"]),
+                    role=str(item["role"]),
+                    action_fingerprint=str(item["action_fingerprint"]),
+                    context_fingerprint=str(item["context_fingerprint"]),
+                    policy_fingerprint=str(item["policy_fingerprint"]),
+                    state_fingerprint=str(item["state_fingerprint"]),
+                    matched_rules=tuple(str(rule) for rule in item["matched_rules"]),
+                    created_at=float(item["created_at"]),
+                    expires_at=float(item["expires_at"]),
+                    state=ApprovalState(str(item["state"])),
+                    consumed=bool(item["consumed"]),
+                )
+            except (KeyError, TypeError, ValueError) as exc:
+                raise ApprovalError("invalid approval request snapshot fields") from exc
+            if request.id in manager._requests:
+                raise ApprovalError("approval request ids must be unique")
+            if not request.id or not request.role or request.expires_at < request.created_at:
+                raise ApprovalError("invalid approval request snapshot values")
+            if request.consumed and request.state is not ApprovalState.APPROVED:
+                raise ApprovalError("only approved requests can be consumed")
+            manager._requests[request.id] = request
+        manager._next_id = next_id
+        return manager

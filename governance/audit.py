@@ -239,6 +239,18 @@ class AuditLog:
         self._ids.add(event.event_id)
         self._events.append(event)
 
+    def next_sequence(self, trace_id: str) -> int:
+        """Return the next numeric event sequence for a recovered trace."""
+        prefix = f"{trace_id}-"
+        sequences = []
+        for event in self._events:
+            if event.trace_id != trace_id or not event.event_id.startswith(prefix):
+                continue
+            suffix = event.event_id[len(prefix):]
+            if suffix.isdigit():
+                sequences.append(int(suffix))
+        return max(sequences, default=0) + 1
+
     @property
     def events(self) -> tuple[DecisionEvent, ...]:
         return tuple(self._events)

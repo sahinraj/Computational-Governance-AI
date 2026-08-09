@@ -26,6 +26,7 @@ from .delegation import AuthorityProof, DelegationError, DelegationGraph, Grant
 from .interceptor import (
     ApprovalStub, InterceptionResult, Interceptor, InterceptorMode,
 )
+from .storage import AtomicJsonStore, JsonlAuditStore, StoreError
 
 __all__ = [
     "Actor", "Capability", "Action", "Context", "Decision", "DecisionKind",
@@ -41,4 +42,5 @@ __all__ = [
     "CompiledPolicy", "compile_laws", "compile_policy", "DelegationError",
     "AuthorityProof", "DelegationGraph", "Grant", "ApprovalStub", "InterceptionResult",
     "Interceptor", "InterceptorMode",
+    "AtomicJsonStore", "JsonlAuditStore", "StoreError",
 ]

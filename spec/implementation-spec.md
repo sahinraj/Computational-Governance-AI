@@ -178,10 +178,11 @@ Work in order. Do not proceed until the milestone acceptance check passes.
 - **M15 — Bounded human approval.** Add request identity, exact-state binding, pending/approved/denied/expired states, timeout, and single-use resume on top of enforce mode. *Accept:* pending, denied, expired, stale, and replayed approvals never execute; a valid approval resumes exactly one action.
 - **M16 — Runtime adapter and release hardening.** Add a typed tool-call boundary, enforce-mode fail-closed errors, idempotency, performance checks, security guidance, and v0.2 package metadata. *Accept:* a clean install runs the quickstart and CI covers tests, benchmark, failure, performance, and package checks.
 - **M17 — Versioned conformance protocol.** Define implementation-independent JSON envelopes and a black-box adapter runner. *Accept:* protocol fixtures round-trip, the independent transcript adapter passes exactly, and the conformance package imports no reference implementation.
+- **M18 — Durable state and crash-safe recovery.** Persist delegation, approval, and audit state through versioned snapshots and append-only JSONL with atomic replacement, fsync, and fail-closed corruption handling. *Accept:* restart recovery preserves authority, approval lifecycle, and audit sequence; malformed or incompatible state is rejected.
 
 ## 9. Definition of done
 
-- All M1–M17 acceptance checks pass
+- All M1–M18 acceptance checks pass
 - Shadow and enforce modes run on the same trace
 - Benchmark results show measurable separation from a static baseline
 - Failure taxonomy includes a reproducible test for each class
@@ -219,6 +220,7 @@ Prefer deterministic logic in the enforcement path. Enforcement must not depend 
 - [2026-08-08] M15 — bounded approval manager added with pending/approved/denied/expired states, exact action/context/policy/state binding, expiry, and single-use enforce-mode resume; synchronous ApprovalStub remains compatible.
 - [2026-08-08] M16 — typed RuntimeAdapter and ToolCall added with enforce fail-closed governance errors, request idempotency, local performance runner, security policy, changelog, and package version 0.2.0.
 - [2026-08-09] M17 — implementation-independent conformance package added with versioned ToolCall, Decision, and audit-event envelopes, canonical JSON, schemas, fixtures, and a black-box transcript runner.
+- [2026-08-09] M18 — versioned atomic JSON snapshots and fsynced append-only audit storage added; delegation and approval state restore fail closed, and recovered interceptors continue trace event sequences.
 
 ## 12. Open implementation questions
 
@@ -231,3 +233,4 @@ Prefer deterministic logic in the enforcement path. Enforcement must not depend 
 - Audit retention: the reference implementation exports append-only JSONL; centralized storage and distributed tracing remain integration responsibilities.
 - Approval integration: the reference manager is in-memory and role-based; external identity, email/chat delivery, durable storage, and quorum remain integration paths.
 - Conformance: v1.0 JSON envelopes and additive compatibility rules are defined; network transport and authentication remain integration paths.
+- Persistence: versioned local snapshots and append-only JSONL are implemented for the reference runtime; encryption, remote replication, and distributed consistency remain out of scope.
