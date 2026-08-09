@@ -22,6 +22,10 @@ Use the schema in `governancebench/schema.py` and validate the dataset with
 one of the ten declared categories, abstract rule definitions, actors with
 explicit intrinsic capabilities where relevant, optional setup (delegations or
 prior state), and a trace whose steps carry the expected decision, expected
-escalation role where applicable, and the rule each tests. The benchmark
-package must remain independent of `governance/`; reference-specific adapters
-belong in `evaluation/`.
+escalation role where applicable, and the rule each tests. New scenarios should
+be hand-labeled from the state immediately before each step, include a boundary
+or positive counterpart where practical, and record revocation, expiry,
+approval, and context transitions as next-check effects. The v0.2 corpus
+requires at least three scenarios per category. The benchmark package must
+remain independent of `governance/`; reference-specific adapters belong in
+`evaluation/`.

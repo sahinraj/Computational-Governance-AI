@@ -5,8 +5,8 @@
 A formal model, a reference implementation, and a runtime-agnostic benchmark for deciding whether an autonomous agent's intended action is permitted **before it executes** — accounting for delegated authority, human escalation, revocation, and runtime context change.
 
 The theory is frozen at **Foundations v1**. The reference implementation and
-initial GovernanceBench release now complete milestones M1–M11; the benchmark
-is intentionally small and hand-authored so its labels remain auditable.
+initial GovernanceBench v0.2 release now completes milestones M1–M12; the
+benchmark remains hand-authored so its labels remain auditable.
 
 ---
 
@@ -56,6 +56,7 @@ docs/              GitHub Pages site
 | M9 | GovernanceBench dataset | ✅ |
 | M10 | Evaluation vs static baseline | ✅ |
 | M11 | Failure taxonomy harness | ✅ |
+| M12 | GovernanceBench v0.2 corpus | ✅ |
 
 ## Quickstart
 
@@ -94,11 +95,11 @@ python -m evaluation.run_benchmark
 python -m evaluation.failure_harness
 ```
 
-The initial benchmark contains 10 canonical scenarios across 10 categories and
-13 labeled trace steps. The reference implementation scores 1.0 exact
-accuracy; the static baseline scores 0.5385 (7/13), with the required separation on
-delegation, runtime context, revocation, and multi-agent cases. Generated JSON
-artifacts live in `reports/`.
+GovernanceBench v0.2 contains 30 canonical scenarios across 10 categories and
+39 labeled trace steps, with at least three scenarios per category. The
+reference implementation scores 1.0 exact accuracy; the static baseline
+remains weaker on the dynamic categories. Generated JSON artifacts live in
+`reports/`.
 
 ## Design commitments
 

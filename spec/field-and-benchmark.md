@@ -3,8 +3,8 @@
 **A field-positioning document and benchmark specification.**
 
 Owner: Sahin Raj
-Status: v1 field specification; GovernanceBench v0.1 released
-Last updated: 2026-08-06
+Status: v1 field specification; GovernanceBench v0.2 released
+Last updated: 2026-08-08
 Companion to: `foundations.md` and `implementation-spec.md`
 
 ---
@@ -138,26 +138,42 @@ The ten categories mirror the four properties of the Runtime Governance Problem,
 
 ### 11. Building it now
 
-The v0.1 release ships one canonical, hand-authored scenario per category in
-`governancebench/data/scenarios.json`, with 13 labeled trace steps total. The
-next benchmark-quality expansion is three to five scenarios per category,
-drawn from crew-rest/duty-time limits, payment approval chains, two-reviewer
-production deploys, and capability restrictions. Hand-authored scenarios with
-known-correct labels are worth more early than volume; the schema is what makes
-them reusable and the runtime-agnostic rule is what makes them a benchmark
-rather than an implementation eval.
+The v0.2 release ships 30 hand-authored scenarios and 39 labeled trace steps in
+`governancebench/data/scenarios.json`, with at least three scenarios per
+category. The corpus includes paired boundary cases, nested delegation,
+expiry, transitive revocation, stale approvals, inheritance conflicts, and
+unknown-capability attempts. Scenarios are intentionally small enough that a
+reviewer can inspect every label.
+
+#### Labeling protocol
+
+Each scenario is labeled in this order:
+
+1. State the active constraints and the actor's intrinsic capabilities.
+2. State every setup transition, including delegation scope, depth, and expiry.
+3. Evaluate each trace step against the state immediately before execution.
+4. Apply the deterministic outcome order `Block > Escalate(role) > Allow`.
+5. Record the exact rule tested and, for escalation, the required role.
+6. Treat revocation, expiry, approvals, and context changes as effective on
+   the next check only; never label from the eventual execution outcome.
+
+New scenarios must include a positive or boundary counterpart where practical,
+must be independently replayable by a third-party adapter, and must not rely
+on implementation-only fields. The reference adapter is a label validator,
+not the source of truth: labels are reviewed against the policy and trace
+before the scenario is added.
 
 ### 12. Definition of done for the benchmark
 
-- Ten categories, each with a set of labeled scenarios in the Section 8 schema.
+- Ten categories, each with at least three labeled scenarios in the Section 8 schema.
 - Every scenario is runtime-agnostic and carries expected decisions with the constraint each step tests.
 - A scoring harness that accepts any system via an adapter and reports precision, recall, escalation accuracy, and overhead.
 - At least one baseline scored alongside the reference implementation, showing measurable separation on categories 4, 7, 8, and 9.
 - A README whose first paragraph states the runtime-agnostic rule (Section 7).
 
-The reproducible v0.1 run is available in `reports/governancebench.json`:
-the reference implementation achieves 13/13 exact decisions, while the
-static baseline achieves 7/13. The reference separates from the baseline on
-delegation misuse, runtime context change, revocation correctness, and
-multi-agent attacks, and reports block precision/recall, escalation accuracy,
-and per-decision overhead.
+The reproducible v0.2 run is available in `reports/governancebench.json`:
+the reference implementation achieves 39/39 exact decisions, while the
+static baseline remains intentionally weaker on delegation misuse, escalation
+handling, human override, runtime context change, revocation correctness, and
+multi-agent attacks. The report includes per-category counts, block
+precision/recall, escalation accuracy, and per-decision overhead.

@@ -5,10 +5,14 @@ from evaluation.failure_harness import run_failure_harness
 from evaluation.reference import ReferenceAdapter, StaticBaselineAdapter
 
 
-def test_m9_dataset_loads_all_categories_and_round_trips():
+def test_m12_dataset_loads_all_categories_and_round_trips():
     scenarios = load_scenarios()
-    assert len(scenarios) == 10
+    assert len(scenarios) >= 30
     assert {scenario.category for scenario in scenarios} == set(CATEGORIES)
+    counts = {category: 0 for category in CATEGORIES}
+    for scenario in scenarios:
+        counts[scenario.category] += 1
+    assert all(count >= 3 for count in counts.values())
     assert all(step.tests for scenario in scenarios for step in scenario.trace)
     assert all(step.expected for scenario in scenarios for step in scenario.trace)
     assert all(scenario.to_dict()["id"] == scenario.id for scenario in scenarios)
