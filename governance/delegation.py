@@ -32,6 +32,16 @@ class Grant:
     granting_rule_id: Optional[str] = None
 
 
+@dataclass(frozen=True)
+class AuthorityProof:
+    """Deterministic evidence for one actor/capability authority check."""
+
+    allowed: bool
+    source: str
+    path: tuple[str, ...] = ()
+    reason: str = ""
+
+
 class DelegationGraph:
     """A graph whose validity is recomputed on every authority check."""
 
@@ -72,6 +82,26 @@ class DelegationGraph:
         ]
         return min(candidates, key=lambda grant: grant.id) if candidates else None
 
+    def _grant_path(self, grant: Grant) -> tuple[str, ...]:
+        """Return a root-to-leaf grant path for a validated grant."""
+        path: list[str] = []
+        current: Optional[Grant] = grant
+        seen: set[str] = set()
+        while current is not None:
+            if current.id in seen:
+                # This should be impossible through grant(), but keeping the
+                # proof routine defensive prevents malformed state from
+                # becoming an infinite loop.
+                return ()
+            seen.add(current.id)
+            path.append(current.id)
+            current = (
+                self._grants.get(current.parent_grant_id)
+                if current.parent_grant_id is not None
+                else None
+            )
+        return tuple(reversed(path))
+
     def _actor_reachable(self, start: str, target: str, now: float) -> bool:
         """Return whether an active delegation path reaches ``target``."""
         pending = [start]
@@ -104,7 +134,14 @@ class DelegationGraph:
     ) -> Grant:
         if depth < 0:
             raise DelegationError("grant depth cannot be negative")
+        requested = _capability(capability)
         source = _capability(scope or capability)
+        if not source.name:
+            raise DelegationError("capability scope cannot be empty")
+        if not source.is_descendant_of(requested):
+            raise DelegationError(
+                f"grant scope {source.name} widens requested capability {requested.name}"
+            )
         grantor_id = _actor_id(grantor)
         if isinstance(grantor, Actor):
             self._intrinsic.setdefault(grantor_id, set()).update(grantor.capabilities)
@@ -158,18 +195,46 @@ class DelegationGraph:
     def has_authority(
         self, actor: Actor | str, capability: Capability | str, now: float = 0.0
     ) -> bool:
+        return self.authority_proof(actor, capability, now).allowed
+
+    def authority_proof(
+        self, actor: Actor | str, capability: Capability | str, now: float = 0.0
+    ) -> AuthorityProof:
+        """Return deterministic provenance for intrinsic or delegated authority."""
         actor_id = _actor_id(actor)
         requested = _capability(capability)
-        if isinstance(actor, Actor):
-            if any(requested.is_descendant_of(_capability(cap)) for cap in actor.capabilities):
-                return True
-        if self._intrinsic_has(actor_id, requested):
-            return True
-        return any(
-            grant.to_actor == actor_id
+        intrinsic = (
+            isinstance(actor, Actor)
+            and any(requested.is_descendant_of(_capability(cap)) for cap in actor.capabilities)
+        ) or self._intrinsic_has(actor_id, requested)
+        if intrinsic:
+            return AuthorityProof(
+                allowed=True,
+                source="intrinsic",
+                path=(f"actor:{actor_id}",),
+                reason="intrinsic capability is valid",
+            )
+
+        candidates = [
+            grant for grant in self._grants.values()
+            if grant.to_actor == actor_id
             and requested.is_descendant_of(grant.capability)
             and self._valid_grant(grant, now)
-            for grant in self._grants.values()
+        ]
+        proofs = [(self._grant_path(grant), grant) for grant in candidates]
+        proofs = [(path, grant) for path, grant in proofs if path]
+        if proofs:
+            path, _ = min(proofs, key=lambda item: (len(item[0]), item[0]))
+            return AuthorityProof(
+                allowed=True,
+                source="delegated",
+                path=path,
+                reason="active delegated capability is valid",
+            )
+        return AuthorityProof(
+            allowed=False,
+            source="none",
+            reason="no intrinsic or active delegated capability",
         )
 
     def grants(self) -> tuple[Grant, ...]:

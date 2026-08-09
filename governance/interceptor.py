@@ -65,6 +65,8 @@ class Interceptor:
             "role": decision.role,
             "reason": decision.reason,
             "matched_rules": decision.matched_rules,
+            "authority_source": decision.authority_source,
+            "authority_path": decision.authority_path,
             "mode": self.mode.value,
         }
         self.events.append(event)
@@ -96,12 +98,16 @@ class Interceptor:
                     DecisionKind.ALLOW,
                     reason=f"approved by {decision.role}",
                     matched_rules=decision.matched_rules,
+                    authority_source=decision.authority_source,
+                    authority_path=decision.authority_path,
                 )
             else:
                 decision = Decision(
                     DecisionKind.BLOCK,
                     reason=f"approval denied by {initial.role}",
                     matched_rules=initial.matched_rules,
+                    authority_source=initial.authority_source,
+                    authority_path=initial.authority_path,
                 )
 
         if decision.kind is not DecisionKind.ALLOW:

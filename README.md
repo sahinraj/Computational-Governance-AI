@@ -5,7 +5,7 @@
 A formal model, a reference implementation, and a runtime-agnostic benchmark for deciding whether an autonomous agent's intended action is permitted **before it executes** — accounting for delegated authority, human escalation, revocation, and runtime context change.
 
 The theory is frozen at **Foundations v1**. The reference implementation and
-initial GovernanceBench v0.2 release now completes milestones M1–M12; the
+initial GovernanceBench v0.2 release now completes milestones M1–M13; the
 benchmark remains hand-authored so its labels remain auditable.
 
 ---
@@ -57,6 +57,7 @@ docs/              GitHub Pages site
 | M10 | Evaluation vs static baseline | ✅ |
 | M11 | Failure taxonomy harness | ✅ |
 | M12 | GovernanceBench v0.2 corpus | ✅ |
+| M13 | Delegation and authority hardening | ✅ |
 
 ## Quickstart
 

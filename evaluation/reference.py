@@ -128,6 +128,8 @@ class ReferenceAdapter:
                 DecisionKind.ALLOW if step.human_decision == "Allow" else DecisionKind.BLOCK,
                 reason=f"human override: {step.human_decision}",
                 matched_rules=decision.matched_rules,
+                authority_source=decision.authority_source,
+                authority_path=decision.authority_path,
             )
         return _benchmark_decision(decision)
 

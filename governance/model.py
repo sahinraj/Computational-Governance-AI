@@ -36,6 +36,8 @@ class Decision:
     role: Optional[str] = None
     reason: str = ""
     matched_rules: tuple[str, ...] = ()
+    authority_source: str = ""
+    authority_path: tuple[str, ...] = ()
 
     def __post_init__(self):
         if self.kind is DecisionKind.ESCALATE and not self.role:

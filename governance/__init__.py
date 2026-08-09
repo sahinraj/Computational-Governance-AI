@@ -14,7 +14,7 @@ from .composition import (
     validate_inheritance, validate_inheritance_graph,
 )
 from .compiler import CompileError, CompiledPolicy, compile_laws, compile_policy
-from .delegation import DelegationError, DelegationGraph, Grant
+from .delegation import AuthorityProof, DelegationError, DelegationGraph, Grant
 from .interceptor import (
     ApprovalStub, InterceptionResult, Interceptor, InterceptorMode,
 )
@@ -26,6 +26,6 @@ __all__ = [
     "evaluate_rules", "inherit_rules", "validate_inheritance", "validate_inheritance_graph",
     "CompileError",
     "CompiledPolicy", "compile_laws", "compile_policy", "DelegationError",
-    "DelegationGraph", "Grant", "ApprovalStub", "InterceptionResult",
+    "AuthorityProof", "DelegationGraph", "Grant", "ApprovalStub", "InterceptionResult",
     "Interceptor", "InterceptorMode",
 ]
