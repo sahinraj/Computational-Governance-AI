@@ -239,3 +239,7 @@ class DelegationGraph:
 
     def grants(self) -> tuple[Grant, ...]:
         return tuple(sorted(self._grants.values(), key=lambda grant: grant.id))
+
+    def revoked_grants(self) -> tuple[str, ...]:
+        """Return revoked grant ids for audit and replay fingerprints."""
+        return tuple(sorted(self._revoked))
