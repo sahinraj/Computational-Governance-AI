@@ -5,7 +5,7 @@
 A formal model, a reference implementation, and a runtime-agnostic benchmark for deciding whether an autonomous agent's intended action is permitted **before it executes** — accounting for delegated authority, human escalation, revocation, and runtime context change.
 
 The theory is frozen at **Foundations v1**. The reference implementation and
-initial GovernanceBench v0.2 release now completes milestones M1–M18; the
+initial GovernanceBench v0.2 release now completes milestones M1–M19; the
 benchmark remains hand-authored so its labels remain auditable. Phase 3 adds
 implementation-independent conformance and durable recovery primitives while
 preserving the frozen Foundations v1 theory.
@@ -65,6 +65,7 @@ docs/              GitHub Pages site
 | M16 | Runtime adapter and release hardening | ✅ |
 | M17 | Versioned conformance protocol | ✅ |
 | M18 | Durable state and crash-safe recovery | ✅ |
+| M19 | Deterministic model-based assurance | ✅ |
 
 ## Quickstart
 
@@ -76,6 +77,7 @@ python -m pytest -q
 python -m evaluation.run_benchmark --check
 python -m evaluation.failure_harness --check
 python -m evaluation.performance --check
+python -m evaluation.model_assurance --check
 ```
 
 Parse a policy and evaluate a rule:
@@ -120,6 +122,9 @@ Phase 3 persistence is intentionally narrow: `AtomicJsonStore` saves versioned
 governance snapshots with same-directory replacement and `JsonlAuditStore`
 recovers fsynced decision events. Corrupt or incompatible state raises a
 `StoreError` so callers can fail closed instead of guessing at recovery.
+The M19 assurance runner generates 1,000 seeded traces, compares delegation
+state with an independent finite-state oracle, and exercises invalid
+transitions such as widening, cycles, stale approvals, and replay.
 
 ## Design commitments
 

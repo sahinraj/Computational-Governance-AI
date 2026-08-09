@@ -1,0 +1,12 @@
+{
+  "checks": 12000,
+  "exact": true,
+  "failed": 0,
+  "failures": [],
+  "invalid_transitions_rejected": 3000,
+  "mutation_detected": true,
+  "oracle": "independent finite-state governance oracle",
+  "passed": 12000,
+  "seed": 20260809,
+  "traces": 1000
+}
