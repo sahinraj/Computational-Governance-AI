@@ -5,7 +5,7 @@
 A formal model, a reference implementation, and a runtime-agnostic benchmark for deciding whether an autonomous agent's intended action is permitted **before it executes** — accounting for delegated authority, human escalation, revocation, and runtime context change.
 
 The theory is frozen at **Foundations v1**. The reference implementation and
-initial GovernanceBench v0.2 release now completes milestones M1–M19; the
+initial GovernanceBench v0.2 release now completes milestones M1–M20; the
 benchmark remains hand-authored so its labels remain auditable. Phase 3 adds
 implementation-independent conformance and durable recovery primitives while
 preserving the frozen Foundations v1 theory.
@@ -66,6 +66,7 @@ docs/              GitHub Pages site
 | M17 | Versioned conformance protocol | ✅ |
 | M18 | Durable state and crash-safe recovery | ✅ |
 | M19 | Deterministic model-based assurance | ✅ |
+| M20 | Quorum-based human approvals | ✅ |
 
 ## Quickstart
 
@@ -125,6 +126,9 @@ recovers fsynced decision events. Corrupt or incompatible state raises a
 The M19 assurance runner generates 1,000 seeded traces, compares delegation
 state with an independent finite-state oracle, and exercises invalid
 transitions such as widening, cycles, stale approvals, and replay.
+Approval-required laws may use `approval_policy: quorum 2 of ReleaseManager,
+SecurityLead, FinanceLead`; enforce mode records distinct reviewer votes and
+resumes only after the exact threshold is reached.
 
 ## Design commitments
 

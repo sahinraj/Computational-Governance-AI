@@ -91,6 +91,8 @@ class DecisionEnvelope:
     matched_rules: tuple[str, ...] = ()
     authority_source: str = ""
     authority_path: tuple[str, ...] = ()
+    approval_roles: tuple[str, ...] = ()
+    approval_threshold: int = 0
     protocol_version: str = PROTOCOL_VERSION
 
     def __post_init__(self):
@@ -104,6 +106,13 @@ class DecisionEnvelope:
             raise ProtocolError("role is only valid for Escalate")
         object.__setattr__(self, "matched_rules", tuple(self.matched_rules))
         object.__setattr__(self, "authority_path", tuple(self.authority_path))
+        object.__setattr__(self, "approval_roles", tuple(self.approval_roles))
+        if self.decision != "Escalate" and (self.approval_roles or self.approval_threshold):
+            raise ProtocolError("approval quorum is only valid for Escalate")
+        if self.approval_roles and not 1 <= self.approval_threshold <= len(self.approval_roles):
+            raise ProtocolError("approval threshold must be within approval role count")
+        if not self.approval_roles and self.approval_threshold:
+            raise ProtocolError("approval threshold requires approval roles")
 
     @classmethod
     def from_dict(cls, value: Mapping[str, Any]) -> "DecisionEnvelope":
@@ -115,6 +124,8 @@ class DecisionEnvelope:
             matched_rules=tuple(str(item) for item in value["matched_rules"]),
             authority_source=str(value.get("authority_source", "")),
             authority_path=tuple(str(item) for item in value.get("authority_path", ())),
+            approval_roles=tuple(str(item) for item in value.get("approval_roles", ())),
+            approval_threshold=int(value.get("approval_threshold", 0)),
             protocol_version=_version(value),
         )
 
@@ -127,6 +138,8 @@ class DecisionEnvelope:
             "matched_rules": list(self.matched_rules),
             "authority_source": self.authority_source,
             "authority_path": list(self.authority_path),
+            "approval_roles": list(self.approval_roles),
+            "approval_threshold": self.approval_threshold,
         }
 
 
@@ -169,6 +182,8 @@ class AuditEventEnvelope:
             matched_rules=tuple(str(item) for item in value["matched_rules"]),
             authority_source=str(value.get("authority_source", "")),
             authority_path=tuple(str(item) for item in value.get("authority_path", ())),
+            approval_roles=tuple(str(item) for item in value.get("approval_roles", ())),
+            approval_threshold=int(value.get("approval_threshold", 0)),
         )
         return cls(
             event_id=str(value["event_id"]),
@@ -203,6 +218,8 @@ class AuditEventEnvelope:
             "matched_rules": list(self.decision.matched_rules),
             "authority_source": self.decision.authority_source,
             "authority_path": list(self.decision.authority_path),
+            "approval_roles": list(self.decision.approval_roles),
+            "approval_threshold": self.decision.approval_threshold,
             "mode": self.mode,
             "executed": self.executed,
             "outcome": self.outcome,

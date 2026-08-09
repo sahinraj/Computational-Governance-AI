@@ -100,6 +100,11 @@ LAW-022
   authority_level: >= 2
   forbidden_classes: intern
   on_violation: block
+
+LAW-031
+  capability: deploy.production
+  approval_policy: quorum 2 of ReleaseManager, SecurityLead, FinanceLead
+  on_violation: escalate
 ```
 
 Semantics to define precisely:
@@ -180,10 +185,11 @@ Work in order. Do not proceed until the milestone acceptance check passes.
 - **M17 — Versioned conformance protocol.** Define implementation-independent JSON envelopes and a black-box adapter runner. *Accept:* protocol fixtures round-trip, the independent transcript adapter passes exactly, and the conformance package imports no reference implementation.
 - **M18 — Durable state and crash-safe recovery.** Persist delegation, approval, and audit state through versioned snapshots and append-only JSONL with atomic replacement, fsync, and fail-closed corruption handling. *Accept:* restart recovery preserves authority, approval lifecycle, and audit sequence; malformed or incompatible state is rejected.
 - **M19 — Deterministic model-based assurance.** Generate seeded governance traces and compare core transitions with an independent finite-state oracle, including invalid-transition mutation checks. *Accept:* 1,000 traces are reproducible, all invariants pass, and widening, cycles, stale bindings, and replay are demonstrably rejected.
+- **M20 — Quorum-based human approvals.** Add a declarative distinct-reviewer quorum, exact-state vote binding, durable vote state, and versioned conformance fields. *Accept:* a 2-of-3 approval requires two named roles, rejects duplicate/unknown/stale votes, handles denial and expiry, and resumes one exact action only once.
 
 ## 9. Definition of done
 
-- All M1–M19 acceptance checks pass
+- All M1–M20 acceptance checks pass
 - Shadow and enforce modes run on the same trace
 - Benchmark results show measurable separation from a static baseline
 - Failure taxonomy includes a reproducible test for each class
@@ -223,6 +229,7 @@ Prefer deterministic logic in the enforcement path. Enforcement must not depend 
 - [2026-08-09] M17 — implementation-independent conformance package added with versioned ToolCall, Decision, and audit-event envelopes, canonical JSON, schemas, fixtures, and a black-box transcript runner.
 - [2026-08-09] M18 — versioned atomic JSON snapshots and fsynced append-only audit storage added; delegation and approval state restore fail closed, and recovered interceptors continue trace event sequences.
 - [2026-08-09] M19 — seeded model-based assurance runner added with an independent finite-state oracle; 1,000 traces produce 12,000 passing invariant checks and reject 3,000 invalid transitions.
+- [2026-08-09] M20 — declarative quorum approval policies, distinct reviewer votes, exact binding, persisted vote state, and additive conformance fields added; 2-of-3 denial, expiry, and replay cases fail closed.
 
 ## 12. Open implementation questions
 
@@ -237,3 +244,4 @@ Prefer deterministic logic in the enforcement path. Enforcement must not depend 
 - Conformance: v1.0 JSON envelopes and additive compatibility rules are defined; network transport and authentication remain integration paths.
 - Persistence: versioned local snapshots and append-only JSONL are implemented for the reference runtime; encryption, remote replication, and distributed consistency remain out of scope.
 - Assurance: the reference runner uses a deterministic finite-state oracle and generated traces; property-based scaling beyond the checked seed and model diversity remain future work.
+- Approval quorum: the reference runtime supports named role thresholds and exact-state votes; external identity, notification delivery, and cryptographic signatures remain out of scope.

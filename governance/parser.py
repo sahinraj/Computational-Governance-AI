@@ -8,6 +8,7 @@ Concrete syntax (a Law denotes a Rule in the model). Example:
       constraint: amount <= 100
       forbidden_classes: intern
       requires_approval: FinanceLead
+      approval_policy: quorum 2 of ReleaseManager, SecurityLead, FinanceLead
       on_violation: escalate
 
 Design choice recorded (spec Sec. 12): a small line-based DSL, not YAML,
@@ -19,10 +20,11 @@ a minimal comparison form over action, actor, and context fields:
 from __future__ import annotations
 
 import operator
+import re
 import shlex
 
 from .model import Capability, Disposition
-from .rule import PredicateSpec, Rule
+from .rule import ApprovalRequirement, PredicateSpec, Rule
 
 
 class ParseError(ValueError):
@@ -105,6 +107,17 @@ def _parse_constraint(value: str, line_no: int):
     return _make_predicate(field_name, op_symbol, threshold)
 
 
+def _parse_approval_policy(value: str, line_no: int) -> ApprovalRequirement:
+    match = re.fullmatch(r"quorum\s+(\d+)\s+of\s+(.+)", value.strip(), re.IGNORECASE)
+    if match is None:
+        raise ParseError(line_no, "approval_policy must be 'quorum N of RoleA, RoleB, ...'")
+    roles = tuple(role.strip() for role in match.group(2).split(",") if role.strip())
+    try:
+        return ApprovalRequirement(roles=roles, threshold=int(match.group(1)))
+    except ValueError as exc:
+        raise ParseError(line_no, str(exc)) from exc
+
+
 def parse_laws(source: str) -> list[Rule]:
     """Parse source containing one or more LAW blocks into Rules."""
     rules: list[Rule] = []
@@ -120,6 +133,7 @@ def parse_laws(source: str) -> list[Rule]:
             min_authority=block.get("min_authority", 0),
             disposition=block.get("disposition", Disposition.BLOCK),
             requires_approval=block.get("requires_approval"),
+            approval_requirement=block.get("approval_requirement"),
             predicate=block.get("predicate"),
             predicate_spec=block.get("predicate_spec"),
             forbidden_classes=frozenset(block.get("forbidden_classes", [])),
@@ -158,6 +172,10 @@ def parse_laws(source: str) -> list[Rule]:
             current["forbidden_classes"] = [c.strip() for c in value.split(",") if c.strip()]
         elif key == "requires_approval":
             current["requires_approval"] = value
+        elif key == "approval_policy":
+            if "requires_approval" in current:
+                raise ParseError(i, "requires_approval and approval_policy are mutually exclusive")
+            current["approval_requirement"] = _parse_approval_policy(value, i)
         elif key == "on_violation":
             v = value.lower()
             if v not in ("block", "escalate"):

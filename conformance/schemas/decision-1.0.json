@@ -10,7 +10,9 @@
     "reason": {"type": "string"},
     "matched_rules": {"type": "array", "items": {"type": "string"}},
     "authority_source": {"type": "string"},
-    "authority_path": {"type": "array", "items": {"type": "string"}}
+    "authority_path": {"type": "array", "items": {"type": "string"}},
+    "approval_roles": {"type": "array", "items": {"type": "string"}},
+    "approval_threshold": {"type": "integer", "minimum": 0}
   },
   "additionalProperties": false
 }

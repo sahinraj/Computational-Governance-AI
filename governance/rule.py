@@ -40,6 +40,26 @@ class PredicateSpec:
 
 
 @dataclass(frozen=True)
+class ApprovalRequirement:
+    """A distinct-reviewer quorum attached to one rule."""
+
+    roles: tuple[str, ...]
+    threshold: int
+
+    def __post_init__(self):
+        if not self.roles or any(not role for role in self.roles):
+            raise ValueError("approval quorum requires named roles")
+        if len(set(self.roles)) != len(self.roles):
+            raise ValueError("approval quorum roles must be distinct")
+        if self.threshold < 1 or self.threshold > len(self.roles):
+            raise ValueError("approval quorum threshold must be within role count")
+
+    @property
+    def label(self) -> str:
+        return f"quorum({self.threshold}/{len(self.roles)})"
+
+
+@dataclass(frozen=True)
 class Rule:
     """One governance rule.
 
@@ -53,6 +73,7 @@ class Rule:
     min_authority: int = 0
     disposition: Disposition = Disposition.BLOCK
     requires_approval: Optional[str] = None
+    approval_requirement: Optional[ApprovalRequirement] = None
     # predicate returns True when the action is PERMITTED by this rule's condition.
     predicate: Optional[object] = None  # Callable[[Actor, dict, Context], bool]
     # forbidden_classes: actor classes that may never exercise this capability.
@@ -89,7 +110,13 @@ class Rule:
 
         # Approval is a rule condition, but the disposition determines whether
         # missing approval blocks immediately or escalates to the named role.
-        if self.requires_approval and self.requires_approval not in context.prior_approvals:
+        if self.approval_requirement:
+            approved = sum(
+                role in context.prior_approvals for role in self.approval_requirement.roles
+            )
+            if approved < self.approval_requirement.threshold:
+                return Result.VIOLATED
+        elif self.requires_approval and self.requires_approval not in context.prior_approvals:
             return Result.VIOLATED
 
         return Result.SATISFIED
@@ -106,4 +133,7 @@ class Rule:
             predicate_key,
             tuple(sorted(self.forbidden_classes)),
             self.requires_approval,
+            None if self.approval_requirement is None else (
+                self.approval_requirement.roles, self.approval_requirement.threshold
+            ),
         )

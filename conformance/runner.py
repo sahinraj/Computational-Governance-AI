@@ -82,7 +82,10 @@ def run_conformance(cases: tuple[ConformanceCase, ...], adapter: ConformanceAdap
             received = actual.to_dict()
             # Reasons are explanatory and can vary across implementations;
             # decision kind, role, matched rules, and provenance are normative.
-            keys = ("decision", "role", "matched_rules", "authority_source", "authority_path")
+            keys = (
+                "decision", "role", "matched_rules", "authority_source", "authority_path",
+                "approval_roles", "approval_threshold",
+            )
             if all(received[key] == expected[key] for key in keys):
                 report.exact_matches += 1
             else:
