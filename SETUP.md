@@ -13,11 +13,21 @@ python -m pip install -r requirements-dev.txt
 python -m pytest -q
 python -m evaluation.run_benchmark --check
 python -m evaluation.failure_harness --check
+python -m evaluation.performance --check
 ```
 
 The benchmark is runtime-agnostic. The reference adapter in `evaluation/`
 exists only to demonstrate one implementation; alternative systems should
 implement the adapter protocol in `governancebench.scoring`.
+
+The installable runtime adapter is available from `governance`:
+
+```python
+from governance import Context, Interceptor, RuntimeAdapter, ToolCall
+
+adapter = RuntimeAdapter(Interceptor(policy, mode="enforce"))
+result = adapter.invoke(ToolCall(actor, "payment.send", {"amount": 10}), Context(), operation)
+```
 
 ## GitHub Pages
 

@@ -98,7 +98,7 @@
       },
       "escalation_accuracy": 1.0,
       "exact_matches": 39,
-      "mean_overhead_ms": 0.008154820512820512,
+      "mean_overhead_ms": 0.00813676923076923,
       "mismatches": [],
       "system": "reference",
       "total_steps": 39
@@ -171,7 +171,7 @@
       },
       "escalation_accuracy": 1.0,
       "exact_matches": 22,
-      "mean_overhead_ms": 0.004193410256410257,
+      "mean_overhead_ms": 0.004223205128205128,
       "mismatches": [
         {
           "actual": "Allow",

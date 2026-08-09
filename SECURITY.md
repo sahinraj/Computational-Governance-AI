@@ -1,0 +1,26 @@
+# Security policy
+
+This repository is a research reference implementation, not a hosted security
+service. The enforce-mode path is designed to fail closed, but integrations
+remain responsible for authenticating actors, protecting policy sources,
+securing approval channels, and retaining audit output.
+
+## Reporting a vulnerability
+
+Please do not disclose an exploitable governance bypass in a public issue.
+Use GitHub's private vulnerability reporting for this repository when
+available. Include the affected commit, a minimal reproduction, expected versus
+actual decision, and whether the operation executed.
+
+## Security invariants
+
+- Governance is evaluated before the supplied operation is invoked.
+- Enforce-mode errors block and emit an audit event.
+- Delegated authority is scoped, expiring, revocable, and provenance-aware.
+- Approval requests are bound to the action and current policy/state and are
+  single-use.
+- Audit events fingerprint policy, state, action, and context without storing
+  raw action parameters.
+
+The in-memory approval manager and delegation graph are intentionally not
+durable or cryptographic. Production integrations must provide those controls.

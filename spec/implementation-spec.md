@@ -3,7 +3,7 @@
 **A policy language and compiler that enforces organizational rules on autonomous agents at runtime.**
 
 Owner: Sahin Raj
-Status: Reference implementation v0.2 — M1–M15 complete
+Status: Reference implementation v0.2 — M1–M16 complete
 Last updated: 2026-08-08
 
 ---
@@ -176,10 +176,11 @@ Work in order. Do not proceed until the milestone acceptance check passes.
 - **M13 — Delegation and authority hardening.** Enforce capability attenuation, record grant provenance, reject widening scopes, and expose deterministic authority proofs. *Accept:* adversarial and generated invariant tests pass and every delegated decision can report its authority path.
 - **M14 — Auditability and replay.** Emit versioned, redacted decision events with policy/state/action/context fingerprints and replay drift detection. *Accept:* shadow and enforce checks serialize consistently and changed policy or state is detected.
 - **M15 — Bounded human approval.** Add request identity, exact-state binding, pending/approved/denied/expired states, timeout, and single-use resume on top of enforce mode. *Accept:* pending, denied, expired, stale, and replayed approvals never execute; a valid approval resumes exactly one action.
+- **M16 — Runtime adapter and release hardening.** Add a typed tool-call boundary, enforce-mode fail-closed errors, idempotency, performance checks, security guidance, and v0.2 package metadata. *Accept:* a clean install runs the quickstart and CI covers tests, benchmark, failure, performance, and package checks.
 
 ## 9. Definition of done
 
-- All M1–M15 acceptance checks pass
+- All M1–M16 acceptance checks pass
 - Shadow and enforce modes run on the same trace
 - Benchmark results show measurable separation from a static baseline
 - Failure taxonomy includes a reproducible test for each class
@@ -215,6 +216,7 @@ Prefer deterministic logic in the enforcement path. Enforcement must not depend 
 - [2026-08-08] M13 — delegation grants now enforce explicit scope attenuation and expose deterministic intrinsic/delegated authority proofs, including grant paths and optional granting-rule provenance.
 - [2026-08-08] M14 — versioned decision events, append-only JSONL audit export, policy/state/action/context fingerprints, and deterministic replay drift detection added; the legacy in-memory event API remains compatible.
 - [2026-08-08] M15 — bounded approval manager added with pending/approved/denied/expired states, exact action/context/policy/state binding, expiry, and single-use enforce-mode resume; synchronous ApprovalStub remains compatible.
+- [2026-08-08] M16 — typed RuntimeAdapter and ToolCall added with enforce fail-closed governance errors, request idempotency, local performance runner, security policy, changelog, and package version 0.2.0.
 
 ## 12. Open implementation questions
 

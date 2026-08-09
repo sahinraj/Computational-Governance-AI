@@ -13,3 +13,6 @@ on the local runner and is therefore informative rather than a cross-machine
 performance claim.
 `failure-taxonomy.json` records the injected failure, decision, execution
 containment, and human-readable log for each M11 case.
+
+`performance.json` records a local decision-overhead measurement. It is a
+release sanity check, not a cross-machine performance claim.

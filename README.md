@@ -29,7 +29,7 @@ subject to rule soundness, delegation validity, escalation totality, and context
 ## Repository layout
 
 ```
-governance/        reference implementation of 𝒢
+governance/        reference implementation of 𝒢 and tool-boundary adapter
 governancebench/   runtime-agnostic benchmark schema, dataset, and scorer
 evaluation/        reference adapter, static baseline, and reproducible runners
 tests/             acceptance checks, one set per milestone
@@ -60,6 +60,7 @@ docs/              GitHub Pages site
 | M13 | Delegation and authority hardening | ✅ |
 | M14 | Auditability and deterministic replay | ✅ |
 | M15 | Bounded human approval lifecycle | ✅ |
+| M16 | Runtime adapter and release hardening | ✅ |
 
 ## Quickstart
 
@@ -70,6 +71,7 @@ python -m pip install -r requirements-dev.txt
 python -m pytest -q
 python -m evaluation.run_benchmark --check
 python -m evaluation.failure_harness --check
+python -m evaluation.performance --check
 ```
 
 Parse a policy and evaluate a rule:
@@ -103,6 +105,12 @@ GovernanceBench v0.2 contains 30 canonical scenarios across 10 categories and
 reference implementation scores 1.0 exact accuracy; the static baseline
 remains weaker on the dynamic categories. Generated JSON artifacts live in
 `reports/`.
+
+For integrations, `governance.RuntimeAdapter` is the single pre-execution
+entry point for typed `ToolCall` envelopes. Enforce mode invokes the supplied
+operation only after `Allow`, fails closed on governance errors, and rejects a
+completed request id a second time. See [`SECURITY.md`](SECURITY.md) and the
+M16 release notes for integration boundaries.
 
 ## Design commitments
 

@@ -117,6 +117,19 @@ class Interceptor:
         self._record(action, context, decision)
         return decision
 
+    def record_governance_error(
+        self,
+        action: Action,
+        context: Context,
+        reason: str,
+        *,
+        executed: bool = False,
+    ) -> Decision:
+        """Record a fail-closed governance error as a blocking decision."""
+        decision = Decision(DecisionKind.BLOCK, reason=reason)
+        self._record(action, context, decision, executed=executed, outcome=decision.kind.value)
+        return decision
+
     def execute(
         self,
         action: Action,

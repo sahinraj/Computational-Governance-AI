@@ -26,3 +26,5 @@ jobs:
         run: python -m evaluation.run_benchmark --check
       - name: Validate failure taxonomy containment
         run: python -m evaluation.failure_harness --check
+      - name: Validate runtime performance envelope
+        run: python -m evaluation.performance --check --iterations 250

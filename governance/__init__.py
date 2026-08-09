@@ -14,6 +14,7 @@ from .audit import (
     fingerprint, policy_fingerprint, replay_event, state_fingerprint,
 )
 from .approval import ApprovalError, ApprovalManager, ApprovalRequest, ApprovalState
+from .runtime import RuntimeAdapter, RuntimeAdapterError, ToolCall
 from .rule import Rule, Result, Applicability, PredicateSpec
 from .parser import parse_laws, ParseError
 from .composition import (
@@ -33,6 +34,7 @@ __all__ = [
     "action_fingerprint", "context_fingerprint", "delegation_snapshot",
     "fingerprint", "policy_fingerprint", "replay_event", "state_fingerprint",
     "ApprovalError", "ApprovalManager", "ApprovalRequest", "ApprovalState",
+    "RuntimeAdapter", "RuntimeAdapterError", "ToolCall",
     "parse_laws", "ParseError", "Evaluation", "InheritanceError",
     "evaluate_rules", "inherit_rules", "validate_inheritance", "validate_inheritance_graph",
     "CompileError",
