@@ -26,6 +26,12 @@ jobs:
         run: python -m evaluation.run_benchmark --check
       - name: Validate conformance protocol
         run: python -m conformance.runner --check
+      - name: Validate Phase 3 assurance
+        run: python -m evaluation.model_assurance --check --traces 1000
+      - name: Validate release CLI
+        run: python -m governance validate-policy examples/phase3-policy.law --role ReleaseManager --role SecurityLead --role FinanceLead
+      - name: Validate CLI conformance
+        run: python -m governance conformance
       - name: Validate failure taxonomy containment
         run: python -m evaluation.failure_harness --check
       - name: Validate runtime performance envelope

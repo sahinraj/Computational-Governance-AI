@@ -5,10 +5,11 @@
 A formal model, a reference implementation, and a runtime-agnostic benchmark for deciding whether an autonomous agent's intended action is permitted **before it executes** — accounting for delegated authority, human escalation, revocation, and runtime context change.
 
 The theory is frozen at **Foundations v1**. The reference implementation and
-initial GovernanceBench v0.2 release now completes milestones M1–M20; the
-benchmark remains hand-authored so its labels remain auditable. Phase 3 adds
-implementation-independent conformance and durable recovery primitives while
-preserving the frozen Foundations v1 theory.
+The v0.3 reference release completes milestones M1–M21. GovernanceBench v0.2
+remains hand-authored so its labels remain auditable. Phase 3 adds
+implementation-independent conformance, durable recovery, model-based
+assurance, quorum approvals, and a focused CLI while preserving the frozen
+Foundations v1 theory.
 
 ---
 
@@ -67,6 +68,7 @@ docs/              GitHub Pages site
 | M18 | Durable state and crash-safe recovery | ✅ |
 | M19 | Deterministic model-based assurance | ✅ |
 | M20 | Quorum-based human approvals | ✅ |
+| M21 | v0.3 end-to-end integration release | ✅ |
 
 ## Quickstart
 
@@ -79,6 +81,16 @@ python -m evaluation.run_benchmark --check
 python -m evaluation.failure_harness --check
 python -m evaluation.performance --check
 python -m evaluation.model_assurance --check
+```
+
+The v0.3 CLI validates policies, evaluates one tool call, replays a redacted
+audit event, and runs the conformance and assurance reports:
+
+```bash
+python -m governance validate-policy examples/phase3-policy.law \
+  --role ReleaseManager --role SecurityLead --role FinanceLead
+python -m governance conformance
+python -m governance assurance --check
 ```
 
 Parse a policy and evaluate a rule:

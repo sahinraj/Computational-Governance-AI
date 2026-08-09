@@ -1,0 +1,6 @@
+# Phase 3 integration example: a deploy requires two distinct reviewers.
+LAW-PHASE3-QUORUM
+  capability: deploy.production
+  authority_level: >= 4
+  approval_policy: quorum 2 of ReleaseManager, SecurityLead, FinanceLead
+  on_violation: escalate
