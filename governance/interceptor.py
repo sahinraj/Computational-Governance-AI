@@ -63,7 +63,7 @@ class Interceptor:
         self.logger = logger
         self.audit_log = audit_log or AuditLog()
         self.trace_id = trace_id
-        self._next_event_id = 1
+        self._next_event_id = self.audit_log.next_sequence(trace_id)
         self.events: list[dict] = []
 
     def _record(

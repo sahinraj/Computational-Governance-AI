@@ -22,5 +22,8 @@ actual decision, and whether the operation executed.
 - Audit events fingerprint policy, state, action, and context without storing
   raw action parameters.
 
-The in-memory approval manager and delegation graph are intentionally not
-durable or cryptographic. Production integrations must provide those controls.
+The in-memory approval manager and delegation graph remain the default API
+mode. Phase 3 also provides local versioned snapshots and append-only audit
+recovery, but those files are not encrypted or replicated; production
+integrations must add access control, key management, remote retention, and
+identity/signature verification where required.

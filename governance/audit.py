@@ -34,6 +34,10 @@ def policy_fingerprint(policy) -> str:
             "min_authority": rule.min_authority,
             "disposition": rule.disposition.value,
             "requires_approval": rule.requires_approval,
+            "approval_requirement": None if rule.approval_requirement is None else {
+                "roles": list(rule.approval_requirement.roles),
+                "threshold": rule.approval_requirement.threshold,
+            },
             "forbidden_classes": sorted(rule.forbidden_classes),
             "parent_id": rule.parent_id,
             "predicate": None if predicate is None else {
@@ -117,6 +121,8 @@ class DecisionEvent:
     authority_source: str
     authority_path: tuple[str, ...]
     mode: str
+    approval_roles: tuple[str, ...] = ()
+    approval_threshold: int = 0
     executed: Optional[bool] = None
     outcome: Optional[str] = None
     event_version: str = AUDIT_EVENT_VERSION
@@ -162,6 +168,8 @@ class DecisionEvent:
             authority_source=decision.authority_source,
             authority_path=decision.authority_path,
             mode=mode,
+            approval_roles=decision.approval_roles,
+            approval_threshold=decision.approval_threshold,
             executed=executed,
             outcome=outcome or decision.kind.value,
         )
@@ -183,6 +191,8 @@ class DecisionEvent:
             "matched_rules": list(self.matched_rules),
             "authority_source": self.authority_source,
             "authority_path": list(self.authority_path),
+            "approval_roles": list(self.approval_roles),
+            "approval_threshold": self.approval_threshold,
             "mode": self.mode,
             "executed": self.executed,
             "outcome": self.outcome,
@@ -218,6 +228,8 @@ class DecisionEvent:
             authority_source=str(value["authority_source"]),
             authority_path=tuple(str(item) for item in value["authority_path"]),
             mode=str(value["mode"]),
+            approval_roles=tuple(str(item) for item in value.get("approval_roles", ())),
+            approval_threshold=int(value.get("approval_threshold", 0)),
             executed=value.get("executed"),
             outcome=value.get("outcome"),
             event_version=str(value.get("event_version", AUDIT_EVENT_VERSION)),
@@ -238,6 +250,18 @@ class AuditLog:
             raise ValueError(f"duplicate audit event id {event.event_id}")
         self._ids.add(event.event_id)
         self._events.append(event)
+
+    def next_sequence(self, trace_id: str) -> int:
+        """Return the next numeric event sequence for a recovered trace."""
+        prefix = f"{trace_id}-"
+        sequences = []
+        for event in self._events:
+            if event.trace_id != trace_id or not event.event_id.startswith(prefix):
+                continue
+            suffix = event.event_id[len(prefix):]
+            if suffix.isdigit():
+                sequences.append(int(suffix))
+        return max(sequences, default=0) + 1
 
     @property
     def events(self) -> tuple[DecisionEvent, ...]:

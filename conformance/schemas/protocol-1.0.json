@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "computational-governance://conformance/protocol/1.0",
+  "title": "Computational Governance Conformance Protocol",
+  "type": "object",
+  "required": ["protocol_version"],
+  "properties": {"protocol_version": {"const": "1.0"}},
+  "additionalProperties": true
+}

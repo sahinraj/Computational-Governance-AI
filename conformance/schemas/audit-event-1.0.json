@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "computational-governance://conformance/audit-event/1.0",
+  "type": "object",
+  "required": ["event_version", "event_id", "trace_id", "policy_fingerprint", "state_fingerprint", "action_fingerprint", "context_fingerprint", "actor_id", "capability", "decision", "role", "reason", "matched_rules", "mode"],
+  "properties": {
+    "event_version": {"const": "1.0"},
+    "event_id": {"type": "string", "minLength": 1},
+    "trace_id": {"type": "string", "minLength": 1},
+    "policy_fingerprint": {"type": "string"},
+    "state_fingerprint": {"type": "string"},
+    "action_fingerprint": {"type": "string"},
+    "context_fingerprint": {"type": "string"},
+    "actor_id": {"type": "string"},
+    "capability": {"type": "string"},
+    "decision": {"enum": ["Allow", "Block", "Escalate"]},
+    "role": {"type": ["string", "null"]},
+    "reason": {"type": "string"},
+    "matched_rules": {"type": "array", "items": {"type": "string"}},
+    "authority_source": {"type": "string"},
+    "authority_path": {"type": "array", "items": {"type": "string"}},
+    "approval_roles": {"type": "array", "items": {"type": "string"}},
+    "approval_threshold": {"type": "integer", "minimum": 0},
+    "mode": {"enum": ["shadow", "enforce"]},
+    "executed": {"type": ["boolean", "null"]},
+    "outcome": {"type": ["string", "null"]}
+  },
+  "additionalProperties": false
+}

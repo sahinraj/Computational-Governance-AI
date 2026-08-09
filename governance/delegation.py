@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Iterable, Optional
+from typing import Any, Iterable, Optional
 
 from .model import Actor, Capability
 
@@ -243,3 +243,91 @@ class DelegationGraph:
     def revoked_grants(self) -> tuple[str, ...]:
         """Return revoked grant ids for audit and replay fingerprints."""
         return tuple(sorted(self._revoked))
+
+    def snapshot(self) -> dict[str, Any]:
+        """Return a JSON-safe, versioned snapshot of the complete graph state."""
+        return {
+            "schema_version": "1.0",
+            "intrinsic": {
+                actor: sorted(capabilities)
+                for actor, capabilities in sorted(self._intrinsic.items())
+            },
+            "grants": [
+                {
+                    "id": grant.id,
+                    "from_actor": grant.from_actor,
+                    "to_actor": grant.to_actor,
+                    "capability": grant.capability.name,
+                    "depth": grant.depth,
+                    "expires_at": grant.expires_at,
+                    "parent_grant_id": grant.parent_grant_id,
+                    "granting_rule_id": grant.granting_rule_id,
+                }
+                for grant in self.grants()
+            ],
+            "revoked": list(self.revoked_grants()),
+            "next_id": self._next_id,
+        }
+
+    to_snapshot = snapshot
+
+    @classmethod
+    def from_snapshot(cls, snapshot: dict[str, Any]) -> "DelegationGraph":
+        """Restore a graph, rejecting malformed state before it is usable."""
+        if not isinstance(snapshot, dict) or snapshot.get("schema_version") != "1.0":
+            raise DelegationError("unsupported or missing delegation snapshot version")
+        intrinsic = snapshot.get("intrinsic")
+        grants = snapshot.get("grants")
+        revoked = snapshot.get("revoked")
+        next_id = snapshot.get("next_id")
+        if not isinstance(intrinsic, dict) or not isinstance(grants, list):
+            raise DelegationError("invalid delegation snapshot collections")
+        if not isinstance(revoked, list) or not isinstance(next_id, int) or isinstance(next_id, bool):
+            raise DelegationError("invalid delegation snapshot metadata")
+        graph = cls()
+        for actor, capabilities in intrinsic.items():
+            if not isinstance(actor, str) or not isinstance(capabilities, list):
+                raise DelegationError("invalid intrinsic delegation state")
+            graph._intrinsic[actor] = set()
+            for capability in capabilities:
+                try:
+                    graph._intrinsic[actor].add(_capability(capability).name)
+                except (TypeError, ValueError) as exc:
+                    raise DelegationError("invalid intrinsic capability") from exc
+        for item in grants:
+            if not isinstance(item, dict):
+                raise DelegationError("invalid grant snapshot")
+            required = {"id", "from_actor", "to_actor", "capability", "depth"}
+            if not required.issubset(item):
+                raise DelegationError("grant snapshot is missing fields")
+            grant_id = item["id"]
+            if not isinstance(grant_id, str) or grant_id in graph._grants:
+                raise DelegationError("grant ids must be unique strings")
+            try:
+                grant = Grant(
+                    id=grant_id,
+                    from_actor=str(item["from_actor"]),
+                    to_actor=str(item["to_actor"]),
+                    capability=_capability(item["capability"]),
+                    depth=int(item["depth"]),
+                    expires_at=item.get("expires_at"),
+                    parent_grant_id=item.get("parent_grant_id"),
+                    granting_rule_id=item.get("granting_rule_id"),
+                )
+            except (TypeError, ValueError) as exc:
+                raise DelegationError("invalid grant snapshot fields") from exc
+            if grant.depth < 0 or not grant.from_actor or not grant.to_actor:
+                raise DelegationError("invalid grant snapshot values")
+            graph._grants[grant.id] = grant
+        graph._revoked = set()
+        for grant_id in revoked:
+            if not isinstance(grant_id, str) or grant_id not in graph._grants:
+                raise DelegationError("revoked grant must reference a known grant")
+            graph._revoked.add(grant_id)
+        for grant in graph._grants.values():
+            if grant.parent_grant_id is not None and grant.parent_grant_id not in graph._grants:
+                raise DelegationError("grant parent must reference a known grant")
+        if next_id <= 0:
+            raise DelegationError("next grant id must be positive")
+        graph._next_id = next_id
+        return graph

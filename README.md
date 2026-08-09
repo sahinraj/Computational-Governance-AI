@@ -5,8 +5,11 @@
 A formal model, a reference implementation, and a runtime-agnostic benchmark for deciding whether an autonomous agent's intended action is permitted **before it executes** — accounting for delegated authority, human escalation, revocation, and runtime context change.
 
 The theory is frozen at **Foundations v1**. The reference implementation and
-initial GovernanceBench v0.2 release now completes milestones M1–M15; the
-benchmark remains hand-authored so its labels remain auditable.
+The v0.3 reference release completes milestones M1–M21. GovernanceBench v0.2
+remains hand-authored so its labels remain auditable. Phase 3 adds
+implementation-independent conformance, durable recovery, model-based
+assurance, quorum approvals, and a focused CLI while preserving the frozen
+Foundations v1 theory.
 
 ---
 
@@ -61,6 +64,11 @@ docs/              GitHub Pages site
 | M14 | Auditability and deterministic replay | ✅ |
 | M15 | Bounded human approval lifecycle | ✅ |
 | M16 | Runtime adapter and release hardening | ✅ |
+| M17 | Versioned conformance protocol | ✅ |
+| M18 | Durable state and crash-safe recovery | ✅ |
+| M19 | Deterministic model-based assurance | ✅ |
+| M20 | Quorum-based human approvals | ✅ |
+| M21 | v0.3 end-to-end integration release | ✅ |
 
 ## Quickstart
 
@@ -72,6 +80,17 @@ python -m pytest -q
 python -m evaluation.run_benchmark --check
 python -m evaluation.failure_harness --check
 python -m evaluation.performance --check
+python -m evaluation.model_assurance --check
+```
+
+The v0.3 CLI validates policies, evaluates one tool call, replays a redacted
+audit event, and runs the conformance and assurance reports:
+
+```bash
+python -m governance validate-policy examples/phase3-policy.law \
+  --role ReleaseManager --role SecurityLead --role FinanceLead
+python -m governance conformance
+python -m governance assurance --check
 ```
 
 Parse a policy and evaluate a rule:
@@ -111,6 +130,17 @@ entry point for typed `ToolCall` envelopes. Enforce mode invokes the supplied
 operation only after `Allow`, fails closed on governance errors, and rejects a
 completed request id a second time. See [`SECURITY.md`](SECURITY.md) and the
 M16 release notes for integration boundaries.
+
+Phase 3 persistence is intentionally narrow: `AtomicJsonStore` saves versioned
+governance snapshots with same-directory replacement and `JsonlAuditStore`
+recovers fsynced decision events. Corrupt or incompatible state raises a
+`StoreError` so callers can fail closed instead of guessing at recovery.
+The M19 assurance runner generates 1,000 seeded traces, compares delegation
+state with an independent finite-state oracle, and exercises invalid
+transitions such as widening, cycles, stale approvals, and replay.
+Approval-required laws may use `approval_policy: quorum 2 of ReleaseManager,
+SecurityLead, FinanceLead`; enforce mode records distinct reviewer votes and
+resumes only after the exact threshold is reached.
 
 ## Design commitments
 

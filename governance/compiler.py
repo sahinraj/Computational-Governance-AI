@@ -31,6 +31,13 @@ def _validate_rules(rules: tuple[Rule, ...], roles: Optional[set[str]]) -> None:
                 "dangling_role",
                 f"rule {rule.id} references unknown role {rule.requires_approval}",
             )
+        if rule.approval_requirement and roles is not None:
+            unknown = sorted(set(rule.approval_requirement.roles) - roles)
+            if unknown:
+                raise CompileError(
+                    "dangling_role",
+                    f"rule {rule.id} references unknown approval roles {unknown}",
+                )
         previous = seen.get(rule.semantic_signature())
         if previous is not None and previous.disposition is not rule.disposition:
             raise CompileError(

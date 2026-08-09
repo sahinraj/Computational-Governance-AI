@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Optional
+from typing import Any, Optional
 
 from .audit import action_fingerprint, context_fingerprint, policy_fingerprint, state_fingerprint
 from .model import Action, Context, Decision, DecisionKind
@@ -34,6 +34,9 @@ class ApprovalRequest:
     matched_rules: tuple[str, ...]
     created_at: float
     expires_at: float
+    required_roles: tuple[str, ...] = ()
+    threshold: int = 1
+    votes: tuple[str, ...] = ()
     state: ApprovalState = ApprovalState.PENDING
     consumed: bool = False
 
@@ -48,6 +51,9 @@ class ApprovalRequest:
             "matched_rules": list(self.matched_rules),
             "created_at": self.created_at,
             "expires_at": self.expires_at,
+            "required_roles": list(self.required_roles),
+            "threshold": self.threshold,
+            "votes": list(self.votes),
             "state": self.state.value,
             "consumed": self.consumed,
         }
@@ -95,6 +101,8 @@ class ApprovalManager:
             matched_rules=decision.matched_rules,
             created_at=created_at,
             expires_at=created_at + effective_ttl,
+            required_roles=decision.approval_roles or (decision.role,),
+            threshold=decision.approval_threshold or 1,
         )
         self._requests[request_id] = request
         return request
@@ -133,6 +141,12 @@ class ApprovalManager:
                 f"approval request {request.id} is bound to changed {', '.join(mismatches)}"
             )
 
+    @staticmethod
+    def _role_error(request: ApprovalRequest) -> str:
+        if len(request.required_roles) == 1:
+            return f"approval request {request.id} requires role {request.required_roles[0]}"
+        return f"approval request {request.id} requires one of {request.required_roles}"
+
     def approve(
         self,
         request_id: str,
@@ -147,10 +161,14 @@ class ApprovalManager:
         request = self._get(request_id, now)
         if request.state is not ApprovalState.PENDING:
             raise ApprovalError(f"approval request {request.id} is {request.state.value}")
-        if role != request.role:
-            raise ApprovalError(f"approval request {request.id} requires role {request.role}")
+        if role not in request.required_roles:
+            raise ApprovalError(self._role_error(request))
+        if role in request.votes:
+            raise ApprovalError(f"role {role} has already voted on {request.id}")
         self._check_binding(request, policy, action, context, delegation)
-        request.state = ApprovalState.APPROVED
+        request.votes = request.votes + (role,)
+        if len(request.votes) >= request.threshold:
+            request.state = ApprovalState.APPROVED
         return request
 
     def deny(
@@ -163,8 +181,8 @@ class ApprovalManager:
         request = self._get(request_id, now)
         if request.state is not ApprovalState.PENDING:
             raise ApprovalError(f"approval request {request.id} is {request.state.value}")
-        if role != request.role:
-            raise ApprovalError(f"approval request {request.id} requires role {request.role}")
+        if role not in request.required_roles:
+            raise ApprovalError(self._role_error(request))
         request.state = ApprovalState.DENIED
         return request
 
@@ -186,3 +204,77 @@ class ApprovalManager:
         self._check_binding(request, policy, action, context, delegation)
         request.consumed = True
         return request
+
+    def snapshot(self) -> dict[str, Any]:
+        """Return a JSON-safe snapshot, including terminal and consumed states."""
+        return {
+            "schema_version": "1.0",
+            "ttl": self.ttl,
+            "request_prefix": self.request_prefix,
+            "next_id": self._next_id,
+            "requests": [
+                request.to_dict()
+                for request in sorted(self._requests.values(), key=lambda item: item.id)
+            ],
+        }
+
+    to_snapshot = snapshot
+
+    @classmethod
+    def from_snapshot(cls, snapshot: dict[str, Any]) -> "ApprovalManager":
+        """Restore approval state without silently accepting unknown lifecycle data."""
+        if not isinstance(snapshot, dict) or snapshot.get("schema_version") != "1.0":
+            raise ApprovalError("unsupported or missing approval snapshot version")
+        try:
+            manager = cls(
+                ttl=float(snapshot["ttl"]),
+                request_prefix=str(snapshot["request_prefix"]),
+            )
+            next_id = snapshot["next_id"]
+            requests = snapshot["requests"]
+        except (KeyError, TypeError, ValueError) as exc:
+            raise ApprovalError("invalid approval snapshot metadata") from exc
+        if not isinstance(next_id, int) or isinstance(next_id, bool) or next_id <= 0:
+            raise ApprovalError("invalid approval snapshot next id")
+        if not isinstance(requests, list):
+            raise ApprovalError("invalid approval snapshot requests")
+        for item in requests:
+            if not isinstance(item, dict):
+                raise ApprovalError("invalid approval request snapshot")
+            try:
+                request = ApprovalRequest(
+                    id=str(item["id"]),
+                    role=str(item["role"]),
+                    action_fingerprint=str(item["action_fingerprint"]),
+                    context_fingerprint=str(item["context_fingerprint"]),
+                    policy_fingerprint=str(item["policy_fingerprint"]),
+                    state_fingerprint=str(item["state_fingerprint"]),
+                    matched_rules=tuple(str(rule) for rule in item["matched_rules"]),
+                    created_at=float(item["created_at"]),
+                    expires_at=float(item["expires_at"]),
+                    required_roles=tuple(str(role) for role in item.get("required_roles", ())),
+                    threshold=int(item.get("threshold", 1)),
+                    votes=tuple(str(role) for role in item.get("votes", ())),
+                    state=ApprovalState(str(item["state"])),
+                    consumed=bool(item["consumed"]),
+                )
+            except (KeyError, TypeError, ValueError) as exc:
+                raise ApprovalError("invalid approval request snapshot fields") from exc
+            if request.id in manager._requests:
+                raise ApprovalError("approval request ids must be unique")
+            if not request.required_roles:
+                request.required_roles = (request.role,)
+            if not request.id or not request.role or request.expires_at < request.created_at:
+                raise ApprovalError("invalid approval request snapshot values")
+            if (
+                request.threshold < 1
+                or request.threshold > len(request.required_roles)
+                or len(set(request.votes)) != len(request.votes)
+                or not set(request.votes).issubset(request.required_roles)
+            ):
+                raise ApprovalError("invalid approval quorum snapshot values")
+            if request.consumed and request.state is not ApprovalState.APPROVED:
+                raise ApprovalError("only approved requests can be consumed")
+            manager._requests[request.id] = request
+        manager._next_id = next_id
+        return manager

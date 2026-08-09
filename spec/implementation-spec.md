@@ -3,8 +3,8 @@
 **A policy language and compiler that enforces organizational rules on autonomous agents at runtime.**
 
 Owner: Sahin Raj
-Status: Reference implementation v0.2 — M1–M16 complete
-Last updated: 2026-08-08
+Status: Reference implementation v0.3 — M1–M21 complete; Phase 3 complete
+Last updated: 2026-08-09
 
 ---
 
@@ -100,6 +100,11 @@ LAW-022
   authority_level: >= 2
   forbidden_classes: intern
   on_violation: block
+
+LAW-031
+  capability: deploy.production
+  approval_policy: quorum 2 of ReleaseManager, SecurityLead, FinanceLead
+  on_violation: escalate
 ```
 
 Semantics to define precisely:
@@ -177,10 +182,15 @@ Work in order. Do not proceed until the milestone acceptance check passes.
 - **M14 — Auditability and replay.** Emit versioned, redacted decision events with policy/state/action/context fingerprints and replay drift detection. *Accept:* shadow and enforce checks serialize consistently and changed policy or state is detected.
 - **M15 — Bounded human approval.** Add request identity, exact-state binding, pending/approved/denied/expired states, timeout, and single-use resume on top of enforce mode. *Accept:* pending, denied, expired, stale, and replayed approvals never execute; a valid approval resumes exactly one action.
 - **M16 — Runtime adapter and release hardening.** Add a typed tool-call boundary, enforce-mode fail-closed errors, idempotency, performance checks, security guidance, and v0.2 package metadata. *Accept:* a clean install runs the quickstart and CI covers tests, benchmark, failure, performance, and package checks.
+- **M17 — Versioned conformance protocol.** Define implementation-independent JSON envelopes and a black-box adapter runner. *Accept:* protocol fixtures round-trip, the independent transcript adapter passes exactly, and the conformance package imports no reference implementation.
+- **M18 — Durable state and crash-safe recovery.** Persist delegation, approval, and audit state through versioned snapshots and append-only JSONL with atomic replacement, fsync, and fail-closed corruption handling. *Accept:* restart recovery preserves authority, approval lifecycle, and audit sequence; malformed or incompatible state is rejected.
+- **M19 — Deterministic model-based assurance.** Generate seeded governance traces and compare core transitions with an independent finite-state oracle, including invalid-transition mutation checks. *Accept:* 1,000 traces are reproducible, all invariants pass, and widening, cycles, stale bindings, and replay are demonstrably rejected.
+- **M20 — Quorum-based human approvals.** Add a declarative distinct-reviewer quorum, exact-state vote binding, durable vote state, and versioned conformance fields. *Accept:* a 2-of-3 approval requires two named roles, rejects duplicate/unknown/stale votes, handles denial and expiry, and resumes one exact action only once.
+- **M21 — v0.3 end-to-end integration release.** Deliver the CLI, durable/quorum/replay fixture, package metadata, release documentation, and CI gates. *Accept:* a clean install exposes validation, tool-call, replay, conformance, and assurance commands; the full suite passes; and the release artifact reports v0.3.0.
 
 ## 9. Definition of done
 
-- All M1–M16 acceptance checks pass
+- All M1–M21 acceptance checks pass
 - Shadow and enforce modes run on the same trace
 - Benchmark results show measurable separation from a static baseline
 - Failure taxonomy includes a reproducible test for each class
@@ -217,6 +227,11 @@ Prefer deterministic logic in the enforcement path. Enforcement must not depend 
 - [2026-08-08] M14 — versioned decision events, append-only JSONL audit export, policy/state/action/context fingerprints, and deterministic replay drift detection added; the legacy in-memory event API remains compatible.
 - [2026-08-08] M15 — bounded approval manager added with pending/approved/denied/expired states, exact action/context/policy/state binding, expiry, and single-use enforce-mode resume; synchronous ApprovalStub remains compatible.
 - [2026-08-08] M16 — typed RuntimeAdapter and ToolCall added with enforce fail-closed governance errors, request idempotency, local performance runner, security policy, changelog, and package version 0.2.0.
+- [2026-08-09] M17 — implementation-independent conformance package added with versioned ToolCall, Decision, and audit-event envelopes, canonical JSON, schemas, fixtures, and a black-box transcript runner.
+- [2026-08-09] M18 — versioned atomic JSON snapshots and fsynced append-only audit storage added; delegation and approval state restore fail closed, and recovered interceptors continue trace event sequences.
+- [2026-08-09] M19 — seeded model-based assurance runner added with an independent finite-state oracle; 1,000 traces produce 12,000 passing invariant checks and reject 3,000 invalid transitions.
+- [2026-08-09] M20 — declarative quorum approval policies, distinct reviewer votes, exact binding, persisted vote state, and additive conformance fields added; 2-of-3 denial, expiry, and replay cases fail closed.
+- [2026-08-09] M21 — v0.3 CLI, end-to-end persistence/quorum/replay fixture, release metadata, CI assurance gates, and Phase 3 documentation completed.
 
 ## 12. Open implementation questions
 
@@ -228,3 +243,7 @@ Prefer deterministic logic in the enforcement path. Enforcement must not depend 
 - Delegation identity: provenance is explicit within the reference graph; cryptographic credentials and external identity-provider integration remain out of scope.
 - Audit retention: the reference implementation exports append-only JSONL; centralized storage and distributed tracing remain integration responsibilities.
 - Approval integration: the reference manager is in-memory and role-based; external identity, email/chat delivery, durable storage, and quorum remain integration paths.
+- Conformance: v1.0 JSON envelopes and additive compatibility rules are defined; network transport and authentication remain integration paths.
+- Persistence: versioned local snapshots and append-only JSONL are implemented for the reference runtime; encryption, remote replication, and distributed consistency remain out of scope.
+- Assurance: the reference runner uses a deterministic finite-state oracle and generated traces; property-based scaling beyond the checked seed and model diversity remain future work.
+- Approval quorum: the reference runtime supports named role thresholds and exact-state votes; external identity, notification delivery, and cryptographic signatures remain out of scope.

@@ -15,7 +15,7 @@ from .audit import (
 )
 from .approval import ApprovalError, ApprovalManager, ApprovalRequest, ApprovalState
 from .runtime import RuntimeAdapter, RuntimeAdapterError, ToolCall
-from .rule import Rule, Result, Applicability, PredicateSpec
+from .rule import ApprovalRequirement, Rule, Result, Applicability, PredicateSpec
 from .parser import parse_laws, ParseError
 from .composition import (
     Evaluation, InheritanceError, evaluate_rules, inherit_rules,
@@ -26,10 +26,11 @@ from .delegation import AuthorityProof, DelegationError, DelegationGraph, Grant
 from .interceptor import (
     ApprovalStub, InterceptionResult, Interceptor, InterceptorMode,
 )
+from .storage import AtomicJsonStore, JsonlAuditStore, StoreError
 
 __all__ = [
     "Actor", "Capability", "Action", "Context", "Decision", "DecisionKind",
-    "Disposition", "Rule", "Result", "Applicability", "PredicateSpec",
+    "Disposition", "Rule", "Result", "Applicability", "PredicateSpec", "ApprovalRequirement",
     "AUDIT_EVENT_VERSION", "AuditLog", "DecisionEvent", "ReplayResult",
     "action_fingerprint", "context_fingerprint", "delegation_snapshot",
     "fingerprint", "policy_fingerprint", "replay_event", "state_fingerprint",
@@ -41,4 +42,5 @@ __all__ = [
     "CompiledPolicy", "compile_laws", "compile_policy", "DelegationError",
     "AuthorityProof", "DelegationGraph", "Grant", "ApprovalStub", "InterceptionResult",
     "Interceptor", "InterceptorMode",
+    "AtomicJsonStore", "JsonlAuditStore", "StoreError",
 ]

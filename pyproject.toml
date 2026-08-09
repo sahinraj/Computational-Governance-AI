@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "computational-governance"
-version = "0.2.0"
+version = "0.3.0"
 description = "Runtime governance reference implementation and runtime-agnostic benchmark for autonomous systems"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -13,7 +13,8 @@ authors = [{name = "Sahin Raj"}]
 dependencies = []
 
 [tool.setuptools.packages.find]
-include = ["governance*", "governancebench*", "evaluation*"]
+include = ["governance*", "governancebench*", "evaluation*", "conformance*"]
 
 [tool.setuptools.package-data]
 governancebench = ["data/*.json"]
+conformance = ["fixtures/*.json", "schemas/*.json"]

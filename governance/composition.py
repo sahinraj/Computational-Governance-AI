@@ -66,6 +66,16 @@ def validate_inheritance(parent: Rule, child: Rule) -> None:
             f"child {child.id} removes parent approval requirement "
             f"{parent.requires_approval}"
         )
+    if parent.approval_requirement:
+        child_requirement = child.approval_requirement
+        if (
+            child_requirement is None
+            or child_requirement.threshold < parent.approval_requirement.threshold
+            or not set(child_requirement.roles).issuperset(parent.approval_requirement.roles)
+        ):
+            raise InheritanceError(
+                f"child {child.id} weakens parent approval quorum"
+            )
     if parent.disposition is Disposition.BLOCK and child.disposition is Disposition.ESCALATE:
         raise InheritanceError(
             f"child {child.id} changes parent block disposition to escalation"
@@ -202,7 +212,12 @@ def evaluate_rules(
             authority_source=authority_source,
             authority_path=authority_path,
         )
-    role = chosen.requires_approval or "human-reviewer"
+    requirement = chosen.approval_requirement
+    role = (
+        requirement.label
+        if requirement is not None
+        else chosen.requires_approval or "human-reviewer"
+    )
     return Decision(
         DecisionKind.ESCALATE,
         role=role,
@@ -210,4 +225,6 @@ def evaluate_rules(
         matched_rules=matched,
         authority_source=authority_source,
         authority_path=authority_path,
+        approval_roles=() if requirement is None else requirement.roles,
+        approval_threshold=0 if requirement is None else requirement.threshold,
     )

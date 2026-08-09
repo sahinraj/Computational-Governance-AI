@@ -38,12 +38,23 @@ class Decision:
     matched_rules: tuple[str, ...] = ()
     authority_source: str = ""
     authority_path: tuple[str, ...] = ()
+    approval_roles: tuple[str, ...] = ()
+    approval_threshold: int = 0
 
     def __post_init__(self):
         if self.kind is DecisionKind.ESCALATE and not self.role:
             raise ValueError("Escalate decision requires a role")
         if self.kind is not DecisionKind.ESCALATE and self.role:
             raise ValueError("role is only valid for Escalate decisions")
+        if self.kind is not DecisionKind.ESCALATE and (self.approval_roles or self.approval_threshold):
+            raise ValueError("approval quorum is only valid for Escalate decisions")
+        if self.approval_roles:
+            if len(set(self.approval_roles)) != len(self.approval_roles):
+                raise ValueError("approval roles must be distinct")
+            if self.approval_threshold < 1 or self.approval_threshold > len(self.approval_roles):
+                raise ValueError("approval threshold must be within approval role count")
+        elif self.approval_threshold:
+            raise ValueError("approval threshold requires approval roles")
 
 
 @dataclass(frozen=True)
