@@ -4,8 +4,8 @@ title: "Computational Governance for Autonomous Systems"
 authors:
   - family-names: Raj
     given-names: Sahin
-date-released: 2026-08-06
-version: 0.1.0
+date-released: 2026-08-08
+version: 0.2.0
 license: Apache-2.0
 abstract: >
   A formal model, reference implementation, and runtime-agnostic benchmark

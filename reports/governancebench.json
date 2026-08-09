@@ -1,5 +1,6 @@
 {
   "dataset": {
+    "benchmark_version": "0.2",
     "categories": [
       "approval_chain_violations",
       "authority_violations",
@@ -12,7 +13,21 @@
       "revocation_correctness",
       "runtime_context_change"
     ],
-    "scenario_count": 10
+    "category_counts": {
+      "approval_chain_violations": 3,
+      "authority_violations": 3,
+      "budget_violations": 3,
+      "delegation_misuse": 3,
+      "escalation_handling": 3,
+      "human_override": 3,
+      "multi_agent_attacks": 3,
+      "policy_conflicts": 3,
+      "revocation_correctness": 3,
+      "runtime_context_change": 3
+    },
+    "minimum_scenarios_per_category": 3,
+    "scenario_count": 30,
+    "trace_step_count": 39
   },
   "systems": [
     {
@@ -23,140 +38,140 @@
         "approval_chain_violations": {
           "accuracy": 1.0,
           "category": "approval_chain_violations",
-          "exact_matches": 1,
-          "total_steps": 1
+          "exact_matches": 3,
+          "total_steps": 3
         },
         "authority_violations": {
           "accuracy": 1.0,
           "category": "authority_violations",
-          "exact_matches": 1,
-          "total_steps": 1
+          "exact_matches": 3,
+          "total_steps": 3
         },
         "budget_violations": {
           "accuracy": 1.0,
           "category": "budget_violations",
-          "exact_matches": 1,
-          "total_steps": 1
+          "exact_matches": 3,
+          "total_steps": 3
         },
         "delegation_misuse": {
           "accuracy": 1.0,
           "category": "delegation_misuse",
-          "exact_matches": 1,
-          "total_steps": 1
+          "exact_matches": 3,
+          "total_steps": 3
         },
         "escalation_handling": {
           "accuracy": 1.0,
           "category": "escalation_handling",
-          "exact_matches": 2,
-          "total_steps": 2
+          "exact_matches": 5,
+          "total_steps": 5
         },
         "human_override": {
           "accuracy": 1.0,
           "category": "human_override",
-          "exact_matches": 1,
-          "total_steps": 1
+          "exact_matches": 4,
+          "total_steps": 4
         },
         "multi_agent_attacks": {
           "accuracy": 1.0,
           "category": "multi_agent_attacks",
-          "exact_matches": 1,
-          "total_steps": 1
+          "exact_matches": 3,
+          "total_steps": 3
         },
         "policy_conflicts": {
           "accuracy": 1.0,
           "category": "policy_conflicts",
-          "exact_matches": 1,
-          "total_steps": 1
+          "exact_matches": 3,
+          "total_steps": 3
         },
         "revocation_correctness": {
           "accuracy": 1.0,
           "category": "revocation_correctness",
-          "exact_matches": 2,
-          "total_steps": 2
+          "exact_matches": 6,
+          "total_steps": 6
         },
         "runtime_context_change": {
           "accuracy": 1.0,
           "category": "runtime_context_change",
-          "exact_matches": 2,
-          "total_steps": 2
+          "exact_matches": 6,
+          "total_steps": 6
         }
       },
       "escalation_accuracy": 1.0,
-      "exact_matches": 13,
-      "mean_overhead_ms": 0.012528846153846153,
+      "exact_matches": 39,
+      "mean_overhead_ms": 0.00813676923076923,
       "mismatches": [],
       "system": "reference",
-      "total_steps": 13
+      "total_steps": 39
     },
     {
-      "accuracy": 0.5384615384615384,
-      "block_precision": 1.0,
-      "block_recall": 0.42857142857142855,
+      "accuracy": 0.5641025641025641,
+      "block_precision": 0.8888888888888888,
+      "block_recall": 0.4,
       "categories": {
         "approval_chain_violations": {
           "accuracy": 1.0,
           "category": "approval_chain_violations",
-          "exact_matches": 1,
-          "total_steps": 1
+          "exact_matches": 3,
+          "total_steps": 3
         },
         "authority_violations": {
           "accuracy": 1.0,
           "category": "authority_violations",
-          "exact_matches": 1,
-          "total_steps": 1
+          "exact_matches": 3,
+          "total_steps": 3
         },
         "budget_violations": {
           "accuracy": 1.0,
           "category": "budget_violations",
-          "exact_matches": 1,
-          "total_steps": 1
+          "exact_matches": 3,
+          "total_steps": 3
         },
         "delegation_misuse": {
           "accuracy": 0.0,
           "category": "delegation_misuse",
           "exact_matches": 0,
-          "total_steps": 1
+          "total_steps": 3
         },
         "escalation_handling": {
-          "accuracy": 0.5,
+          "accuracy": 0.4,
           "category": "escalation_handling",
-          "exact_matches": 1,
-          "total_steps": 2
+          "exact_matches": 2,
+          "total_steps": 5
         },
         "human_override": {
-          "accuracy": 0.0,
+          "accuracy": 0.25,
           "category": "human_override",
-          "exact_matches": 0,
-          "total_steps": 1
+          "exact_matches": 1,
+          "total_steps": 4
         },
         "multi_agent_attacks": {
-          "accuracy": 0.0,
+          "accuracy": 0.3333333333333333,
           "category": "multi_agent_attacks",
-          "exact_matches": 0,
-          "total_steps": 1
+          "exact_matches": 1,
+          "total_steps": 3
         },
         "policy_conflicts": {
           "accuracy": 1.0,
           "category": "policy_conflicts",
-          "exact_matches": 1,
-          "total_steps": 1
+          "exact_matches": 3,
+          "total_steps": 3
         },
         "revocation_correctness": {
           "accuracy": 0.5,
           "category": "revocation_correctness",
-          "exact_matches": 1,
-          "total_steps": 2
+          "exact_matches": 3,
+          "total_steps": 6
         },
         "runtime_context_change": {
           "accuracy": 0.5,
           "category": "runtime_context_change",
-          "exact_matches": 1,
-          "total_steps": 2
+          "exact_matches": 3,
+          "total_steps": 6
         }
       },
       "escalation_accuracy": 1.0,
-      "exact_matches": 7,
-      "mean_overhead_ms": 0.0052403076923076925,
+      "exact_matches": 22,
+      "mean_overhead_ms": 0.004223205128205128,
       "mismatches": [
         {
           "actual": "Allow",
@@ -205,10 +220,98 @@
           "expected_role": null,
           "scenario": "GB-0010",
           "step": 1
+        },
+        {
+          "actual": "Allow",
+          "actual_role": null,
+          "expected": "Block",
+          "expected_role": null,
+          "scenario": "GB-0017",
+          "step": 1
+        },
+        {
+          "actual": "Allow",
+          "actual_role": null,
+          "expected": "Block",
+          "expected_role": null,
+          "scenario": "GB-0018",
+          "step": 1
+        },
+        {
+          "actual": "Escalate",
+          "actual_role": "ReleaseManager",
+          "expected": "Block",
+          "expected_role": null,
+          "scenario": "GB-0019",
+          "step": 1
+        },
+        {
+          "actual": "Escalate",
+          "actual_role": "SecurityLead",
+          "expected": "Allow",
+          "expected_role": null,
+          "scenario": "GB-0020",
+          "step": 2
+        },
+        {
+          "actual": "Allow",
+          "actual_role": null,
+          "expected": "Block",
+          "expected_role": null,
+          "scenario": "GB-0023",
+          "step": 2
+        },
+        {
+          "actual": "Block",
+          "actual_role": null,
+          "expected": "Allow",
+          "expected_role": null,
+          "scenario": "GB-0024",
+          "step": 2
+        },
+        {
+          "actual": "Allow",
+          "actual_role": null,
+          "expected": "Block",
+          "expected_role": null,
+          "scenario": "GB-0025",
+          "step": 2
+        },
+        {
+          "actual": "Allow",
+          "actual_role": null,
+          "expected": "Block",
+          "expected_role": null,
+          "scenario": "GB-0026",
+          "step": 2
+        },
+        {
+          "actual": "Allow",
+          "actual_role": null,
+          "expected": "Block",
+          "expected_role": null,
+          "scenario": "GB-0028",
+          "step": 1
+        },
+        {
+          "actual": "Escalate",
+          "actual_role": "FinanceLead",
+          "expected": "Block",
+          "expected_role": null,
+          "scenario": "GB-0029",
+          "step": 1
+        },
+        {
+          "actual": "Escalate",
+          "actual_role": "FinanceLead",
+          "expected": "Allow",
+          "expected_role": null,
+          "scenario": "GB-0030",
+          "step": 2
         }
       ],
       "system": "static-baseline",
-      "total_steps": 13
+      "total_steps": 39
     }
   ]
 }

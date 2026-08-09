@@ -1,0 +1,8 @@
+{
+  "iterations": 250,
+  "max_ms": 0.011375,
+  "mean_ms": 0.001990988,
+  "min_ms": 0.001792,
+  "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+  "python": "3.14.3"
+}

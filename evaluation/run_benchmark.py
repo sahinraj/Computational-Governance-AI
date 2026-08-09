@@ -16,10 +16,18 @@ def run_evaluation() -> dict[str, Any]:
     scenarios = load_scenarios()
     reference = score_scenarios(scenarios, ReferenceAdapter())
     baseline = score_scenarios(scenarios, StaticBaselineAdapter())
+    category_counts = {
+        category: sum(scenario.category == category for scenario in scenarios)
+        for category in sorted({scenario.category for scenario in scenarios})
+    }
     return {
         "dataset": {
+            "benchmark_version": "0.2",
             "scenario_count": len(scenarios),
+            "trace_step_count": sum(len(scenario.trace) for scenario in scenarios),
             "categories": sorted({scenario.category for scenario in scenarios}),
+            "category_counts": category_counts,
+            "minimum_scenarios_per_category": min(category_counts.values()),
         },
         "systems": [reference.to_dict(), baseline.to_dict()],
     }

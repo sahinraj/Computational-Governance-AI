@@ -5,8 +5,8 @@
 A formal model, a reference implementation, and a runtime-agnostic benchmark for deciding whether an autonomous agent's intended action is permitted **before it executes** — accounting for delegated authority, human escalation, revocation, and runtime context change.
 
 The theory is frozen at **Foundations v1**. The reference implementation and
-initial GovernanceBench release now complete milestones M1–M11; the benchmark
-is intentionally small and hand-authored so its labels remain auditable.
+initial GovernanceBench v0.2 release now completes milestones M1–M15; the
+benchmark remains hand-authored so its labels remain auditable.
 
 ---
 
@@ -29,7 +29,7 @@ subject to rule soundness, delegation validity, escalation totality, and context
 ## Repository layout
 
 ```
-governance/        reference implementation of 𝒢
+governance/        reference implementation of 𝒢 and tool-boundary adapter
 governancebench/   runtime-agnostic benchmark schema, dataset, and scorer
 evaluation/        reference adapter, static baseline, and reproducible runners
 tests/             acceptance checks, one set per milestone
@@ -56,6 +56,11 @@ docs/              GitHub Pages site
 | M9 | GovernanceBench dataset | ✅ |
 | M10 | Evaluation vs static baseline | ✅ |
 | M11 | Failure taxonomy harness | ✅ |
+| M12 | GovernanceBench v0.2 corpus | ✅ |
+| M13 | Delegation and authority hardening | ✅ |
+| M14 | Auditability and deterministic replay | ✅ |
+| M15 | Bounded human approval lifecycle | ✅ |
+| M16 | Runtime adapter and release hardening | ✅ |
 
 ## Quickstart
 
@@ -66,6 +71,7 @@ python -m pip install -r requirements-dev.txt
 python -m pytest -q
 python -m evaluation.run_benchmark --check
 python -m evaluation.failure_harness --check
+python -m evaluation.performance --check
 ```
 
 Parse a policy and evaluate a rule:
@@ -94,11 +100,17 @@ python -m evaluation.run_benchmark
 python -m evaluation.failure_harness
 ```
 
-The initial benchmark contains 10 canonical scenarios across 10 categories and
-13 labeled trace steps. The reference implementation scores 1.0 exact
-accuracy; the static baseline scores 0.5385 (7/13), with the required separation on
-delegation, runtime context, revocation, and multi-agent cases. Generated JSON
-artifacts live in `reports/`.
+GovernanceBench v0.2 contains 30 canonical scenarios across 10 categories and
+39 labeled trace steps, with at least three scenarios per category. The
+reference implementation scores 1.0 exact accuracy; the static baseline
+remains weaker on the dynamic categories. Generated JSON artifacts live in
+`reports/`.
+
+For integrations, `governance.RuntimeAdapter` is the single pre-execution
+entry point for typed `ToolCall` envelopes. Enforce mode invokes the supplied
+operation only after `Allow`, fails closed on governance errors, and rejects a
+completed request id a second time. See [`SECURITY.md`](SECURITY.md) and the
+M16 release notes for integration boundaries.
 
 ## Design commitments
 

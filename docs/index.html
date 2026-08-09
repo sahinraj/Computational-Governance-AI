@@ -114,7 +114,7 @@ rules[0].evaluate(action, Context())   # Result.VIOLATED</code></pre>
 
 <section id="status">
   <h2>Status</h2>
-  <p class="muted">The theory is frozen at Foundations v1. The reference implementation is building milestone by milestone against it; each milestone has an acceptance test.</p>
+  <p class="muted">The theory is frozen at Foundations v1. The reference implementation advances milestone by milestone against it; each milestone has an acceptance test.</p>
   <table>
     <thead><tr><th>Milestone</th><th>Description</th><th>State</th></tr></thead>
     <tbody>
@@ -128,10 +128,15 @@ rules[0].evaluate(action, Context())   # Result.VIOLATED</code></pre>
       <tr><td>M8</td><td>Enforce mode + escalation</td><td class="s-done">Done</td></tr>
       <tr><td>M9</td><td>GovernanceBench dataset</td><td class="s-done">Done</td></tr>
       <tr><td>M10</td><td>Evaluation vs static baseline</td><td class="s-done">Done</td></tr>
-      <tr><td>M11</td><td>Failure taxonomy harness</td><td class="s-done">Done</td></tr>
+    <tr><td>M11</td><td>Failure taxonomy harness</td><td class="s-done">Done</td></tr>
+    <tr><td>M12</td><td>GovernanceBench v0.2 corpus</td><td class="s-done">Done</td></tr>
+    <tr><td>M13</td><td>Delegation and authority hardening</td><td class="s-done">Done</td></tr>
+    <tr><td>M14</td><td>Auditability and deterministic replay</td><td class="s-done">Done</td></tr>
+    <tr><td>M15</td><td>Bounded human approval lifecycle</td><td class="s-done">Done</td></tr>
+    <tr><td>M16</td><td>Runtime adapter and release hardening</td><td class="s-done">Done</td></tr>
     </tbody>
   </table>
-  <p class="muted">GovernanceBench v0.1 contains 10 canonical scenarios and 13 trace steps. The reference implementation scores 13/13 exact decisions; a static baseline scores 7/13, with separation on delegation, context change, revocation, and multi-agent cases.</p>
+  <p class="muted">GovernanceBench v0.2 contains 30 canonical scenarios and 39 trace steps, with at least three scenarios per category. The reference implementation scores 39/39 exact decisions, with separation from the static baseline on dynamic governance cases.</p>
 </section>
 
 <section id="roadmap">

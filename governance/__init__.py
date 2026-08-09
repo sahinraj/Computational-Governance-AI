@@ -1,12 +1,20 @@
 """Computational Governance reference implementation.
 
-Realizes 𝒢(S, α) from Foundations v1. This package builds up per the
-build spec milestones; M1-M3 are the parser and single-rule semantics.
+Realizes 𝒢(S, α) from Foundations v1. This package builds up per the build
+spec milestones and exposes the stable reference API, including audit and
+replay primitives.
 """
 
 from .model import (
     Actor, Capability, Action, Context, Decision, DecisionKind, Disposition,
 )
+from .audit import (
+    AUDIT_EVENT_VERSION, AuditLog, DecisionEvent, ReplayResult,
+    action_fingerprint, context_fingerprint, delegation_snapshot,
+    fingerprint, policy_fingerprint, replay_event, state_fingerprint,
+)
+from .approval import ApprovalError, ApprovalManager, ApprovalRequest, ApprovalState
+from .runtime import RuntimeAdapter, RuntimeAdapterError, ToolCall
 from .rule import Rule, Result, Applicability, PredicateSpec
 from .parser import parse_laws, ParseError
 from .composition import (
@@ -14,7 +22,7 @@ from .composition import (
     validate_inheritance, validate_inheritance_graph,
 )
 from .compiler import CompileError, CompiledPolicy, compile_laws, compile_policy
-from .delegation import DelegationError, DelegationGraph, Grant
+from .delegation import AuthorityProof, DelegationError, DelegationGraph, Grant
 from .interceptor import (
     ApprovalStub, InterceptionResult, Interceptor, InterceptorMode,
 )
@@ -22,10 +30,15 @@ from .interceptor import (
 __all__ = [
     "Actor", "Capability", "Action", "Context", "Decision", "DecisionKind",
     "Disposition", "Rule", "Result", "Applicability", "PredicateSpec",
+    "AUDIT_EVENT_VERSION", "AuditLog", "DecisionEvent", "ReplayResult",
+    "action_fingerprint", "context_fingerprint", "delegation_snapshot",
+    "fingerprint", "policy_fingerprint", "replay_event", "state_fingerprint",
+    "ApprovalError", "ApprovalManager", "ApprovalRequest", "ApprovalState",
+    "RuntimeAdapter", "RuntimeAdapterError", "ToolCall",
     "parse_laws", "ParseError", "Evaluation", "InheritanceError",
     "evaluate_rules", "inherit_rules", "validate_inheritance", "validate_inheritance_graph",
     "CompileError",
     "CompiledPolicy", "compile_laws", "compile_policy", "DelegationError",
-    "DelegationGraph", "Grant", "ApprovalStub", "InterceptionResult",
+    "AuthorityProof", "DelegationGraph", "Grant", "ApprovalStub", "InterceptionResult",
     "Interceptor", "InterceptorMode",
 ]

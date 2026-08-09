@@ -239,6 +239,60 @@ def test_delegation_rejects_actor_cycles():
         graph.grant(second, first, "github.write", depth=0)
 
 
+def test_delegation_scope_cannot_widen_requested_capability():
+    admin = Actor("admin", 5, capabilities={"github.write"})
+    graph = DelegationGraph()
+    with pytest.raises(DelegationError, match="widens requested capability"):
+        graph.grant(admin, "worker", "github.write", scope="github")
+
+
+def test_delegation_authority_proof_is_deterministic_and_records_provenance():
+    admin = Actor("admin", 5, capabilities={"github.write"})
+    worker = Actor("worker", 2)
+    graph = DelegationGraph()
+    grant = graph.grant(
+        admin,
+        worker,
+        "github.write",
+        depth=0,
+        granting_rule_id="LAW-GRANT-001",
+    )
+    proof = graph.authority_proof(worker, "github.write")
+    assert proof.allowed is True
+    assert proof.source == "delegated"
+    assert proof.path == (grant.id,)
+    assert grant.granting_rule_id == "LAW-GRANT-001"
+    assert graph.authority_proof(worker, "github.write") == proof
+
+
+def test_policy_and_interceptor_report_delegated_authority_path():
+    policy = _policy("LAW-1\n  capability: github.write\n")
+    admin = Actor("admin", 5, capabilities={"github.write"})
+    worker = Actor("worker", 2)
+    graph = DelegationGraph()
+    grant = graph.grant(admin, worker, "github.write", depth=0)
+    interceptor = Interceptor(policy, delegation=graph)
+    decision = interceptor.check(
+        Action(worker, Capability("github.write")),
+        Context(),
+    )
+    assert decision.authority_source == "delegated"
+    assert decision.authority_path == (grant.id,)
+    assert interceptor.events[0]["authority_path"] == (grant.id,)
+
+
+@pytest.mark.parametrize(
+    "scope",
+    ["github.read", "github.read.issues", "github.write.pull_request"],
+)
+def test_delegation_accepts_only_descendant_scopes(scope):
+    admin = Actor("admin", 5, capabilities={"github"})
+    graph = DelegationGraph()
+    grant = graph.grant(admin, "worker", "github", scope=scope, depth=0)
+    assert grant.capability.name == scope
+    assert graph.has_authority("worker", scope) is True
+
+
 # M8 — enforce mode and escalation
 
 def test_enforce_mode_approval_allows_and_resumes_operation():

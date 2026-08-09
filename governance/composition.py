@@ -156,13 +156,19 @@ def evaluate_rules(
     )
     matched = tuple(rule.id for rule in applicable)
 
-    if delegation is not None and not delegation.has_authority(
-        action.actor, action.capability, context.now
-    ):
+    authority_source = ""
+    authority_path: tuple[str, ...] = ()
+    if delegation is not None:
+        proof = delegation.authority_proof(action.actor, action.capability, context.now)
+        authority_source = proof.source
+        authority_path = proof.path
+    if delegation is not None and not proof.allowed:
         return Decision(
             DecisionKind.BLOCK,
             reason="delegated authority is missing, expired, or revoked",
             matched_rules=matched,
+            authority_source=authority_source,
+            authority_path=authority_path,
         )
 
     results = tuple((rule.id, rule.evaluate(action, context)) for rule in applicable)
@@ -171,7 +177,13 @@ def evaluate_rules(
     )
     if not violated:
         reason = "all applicable rules satisfied" if applicable else "no applicable rules"
-        return Decision(DecisionKind.ALLOW, reason=reason, matched_rules=matched)
+        return Decision(
+            DecisionKind.ALLOW,
+            reason=reason,
+            matched_rules=matched,
+            authority_source=authority_source,
+            authority_path=authority_path,
+        )
 
     blocking = tuple(
         rule for rule in violated if rule.disposition is Disposition.BLOCK
@@ -187,6 +199,8 @@ def evaluate_rules(
             DecisionKind.BLOCK,
             reason=f"blocked by {chosen.id}",
             matched_rules=matched,
+            authority_source=authority_source,
+            authority_path=authority_path,
         )
     role = chosen.requires_approval or "human-reviewer"
     return Decision(
@@ -194,4 +208,6 @@ def evaluate_rules(
         role=role,
         reason=f"escalated by {chosen.id} to {role}",
         matched_rules=matched,
+        authority_source=authority_source,
+        authority_path=authority_path,
     )
