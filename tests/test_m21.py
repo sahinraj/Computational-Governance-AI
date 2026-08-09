@@ -1,7 +1,7 @@
 """Acceptance tests for M21's end-to-end integration surface."""
 
 import json
-import tomllib
+import re
 from pathlib import Path
 
 from governance import (
@@ -107,7 +107,5 @@ def test_cli_validate_and_assurance_commands(tmp_path, capsys):
 
 
 def test_release_metadata_is_v030():
-    metadata = tomllib.loads(
-        (Path(__file__).parents[1] / "pyproject.toml").read_text(encoding="utf-8")
-    )
-    assert metadata["project"]["version"] == "0.3.0"
+    text = (Path(__file__).parents[1] / "pyproject.toml").read_text(encoding="utf-8")
+    assert re.search(r'^version = "0\.3\.0"$', text, re.MULTILINE)
