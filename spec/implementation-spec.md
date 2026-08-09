@@ -3,7 +3,7 @@
 **A policy language and compiler that enforces organizational rules on autonomous agents at runtime.**
 
 Owner: Sahin Raj
-Status: Reference implementation v0.2 — M1–M14 complete
+Status: Reference implementation v0.2 — M1–M15 complete
 Last updated: 2026-08-08
 
 ---
@@ -175,10 +175,11 @@ Work in order. Do not proceed until the milestone acceptance check passes.
 - **M12 — GovernanceBench v0.2 corpus.** Expand the labeled, runtime-agnostic dataset to at least three scenarios per category, with adversarial pairs and state-transition cases. *Accept:* at least 30 scenarios validate, the reference adapter is exact, and the report records per-category coverage.
 - **M13 — Delegation and authority hardening.** Enforce capability attenuation, record grant provenance, reject widening scopes, and expose deterministic authority proofs. *Accept:* adversarial and generated invariant tests pass and every delegated decision can report its authority path.
 - **M14 — Auditability and replay.** Emit versioned, redacted decision events with policy/state/action/context fingerprints and replay drift detection. *Accept:* shadow and enforce checks serialize consistently and changed policy or state is detected.
+- **M15 — Bounded human approval.** Add request identity, exact-state binding, pending/approved/denied/expired states, timeout, and single-use resume on top of enforce mode. *Accept:* pending, denied, expired, stale, and replayed approvals never execute; a valid approval resumes exactly one action.
 
 ## 9. Definition of done
 
-- All M1–M14 acceptance checks pass
+- All M1–M15 acceptance checks pass
 - Shadow and enforce modes run on the same trace
 - Benchmark results show measurable separation from a static baseline
 - Failure taxonomy includes a reproducible test for each class
@@ -213,6 +214,7 @@ Prefer deterministic logic in the enforcement path. Enforcement must not depend 
 - [2026-08-08] M12 — GovernanceBench v0.2 expanded to 30 scenarios and 39 trace steps, with at least three scenarios per category, a labeling protocol, and per-category report coverage.
 - [2026-08-08] M13 — delegation grants now enforce explicit scope attenuation and expose deterministic intrinsic/delegated authority proofs, including grant paths and optional granting-rule provenance.
 - [2026-08-08] M14 — versioned decision events, append-only JSONL audit export, policy/state/action/context fingerprints, and deterministic replay drift detection added; the legacy in-memory event API remains compatible.
+- [2026-08-08] M15 — bounded approval manager added with pending/approved/denied/expired states, exact action/context/policy/state binding, expiry, and single-use enforce-mode resume; synchronous ApprovalStub remains compatible.
 
 ## 12. Open implementation questions
 
@@ -223,3 +225,4 @@ Prefer deterministic logic in the enforcement path. Enforcement must not depend 
 - Benchmark breadth: resolved for v0.2 at three hand-authored scenarios per category; future releases may add domain-specific packs without changing the core schema.
 - Delegation identity: provenance is explicit within the reference graph; cryptographic credentials and external identity-provider integration remain out of scope.
 - Audit retention: the reference implementation exports append-only JSONL; centralized storage and distributed tracing remain integration responsibilities.
+- Approval integration: the reference manager is in-memory and role-based; external identity, email/chat delivery, durable storage, and quorum remain integration paths.

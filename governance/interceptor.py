@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Callable, Optional
 
+from .approval import ApprovalError, ApprovalManager
 from .audit import AuditLog, DecisionEvent
 from .compiler import CompiledPolicy
 from .model import Action, Context, Decision, DecisionKind
@@ -23,6 +24,7 @@ class InterceptionResult:
     executed: bool
     value: object = None
     initial_decision: Optional[Decision] = None
+    approval_request_id: Optional[str] = None
 
 
 class ApprovalStub:
@@ -48,6 +50,7 @@ class Interceptor:
         mode: InterceptorMode | str = InterceptorMode.SHADOW,
         delegation=None,
         approval_handler: Optional[Callable[[str, Action, Decision], bool]] = None,
+        approval_manager: Optional[ApprovalManager] = None,
         logger: Optional[logging.Logger] = None,
         audit_log: Optional[AuditLog] = None,
         trace_id: str = "default",
@@ -56,6 +59,7 @@ class Interceptor:
         self.mode = InterceptorMode(mode)
         self.delegation = delegation
         self.approval_handler = approval_handler
+        self.approval_manager = approval_manager
         self.logger = logger
         self.audit_log = audit_log or AuditLog()
         self.trace_id = trace_id
@@ -131,6 +135,23 @@ class Interceptor:
                 value=operation(),
             )
 
+        if decision.kind is DecisionKind.ESCALATE and self.approval_manager is not None:
+            request = self.approval_manager.request(
+                decision,
+                self.policy,
+                action,
+                context,
+                delegation=self.delegation,
+                now=context.now,
+            )
+            self._record(action, context, initial, executed=False, outcome=decision.kind.value)
+            return InterceptionResult(
+                decision=decision,
+                initial_decision=initial,
+                executed=False,
+                approval_request_id=request.id,
+            )
+
         if decision.kind is DecisionKind.ESCALATE and self.approval_handler is not None:
             approved = self.approval_handler(decision.role, action, decision)
             if approved:
@@ -163,6 +184,77 @@ class Interceptor:
             initial_decision=initial,
             executed=True,
             value=operation(),
+        )
+
+    def resume_approved(
+        self,
+        request_id: str,
+        action: Action,
+        context: Context,
+        operation: Callable[[], object],
+    ) -> InterceptionResult:
+        """Resume one approved request after rechecking its exact state."""
+        if self.mode is InterceptorMode.SHADOW:
+            return self.execute(action, context, operation)
+        if self.approval_manager is None:
+            raise ApprovalError("no approval manager is configured")
+
+        current = self._evaluate(action, context)
+        request = self.approval_manager.get(request_id, now=context.now)
+        if current.kind is not DecisionKind.ESCALATE or current.role != request.role:
+            decision = Decision(
+                DecisionKind.BLOCK,
+                reason="approval no longer matches the current escalation",
+                matched_rules=current.matched_rules,
+                authority_source=current.authority_source,
+                authority_path=current.authority_path,
+            )
+            self._record(action, context, current, executed=False, outcome=decision.kind.value)
+            return InterceptionResult(
+                decision=decision,
+                initial_decision=current,
+                executed=False,
+                approval_request_id=request_id,
+            )
+        try:
+            self.approval_manager.prepare_resume(
+                request_id,
+                self.policy,
+                action,
+                context,
+                delegation=self.delegation,
+                now=context.now,
+            )
+        except ApprovalError as exc:
+            decision = Decision(
+                DecisionKind.BLOCK,
+                reason=str(exc),
+                matched_rules=current.matched_rules,
+                authority_source=current.authority_source,
+                authority_path=current.authority_path,
+            )
+            self._record(action, context, current, executed=False, outcome=decision.kind.value)
+            return InterceptionResult(
+                decision=decision,
+                initial_decision=current,
+                executed=False,
+                approval_request_id=request_id,
+            )
+
+        decision = Decision(
+            DecisionKind.ALLOW,
+            reason=f"approved by {request.role}",
+            matched_rules=current.matched_rules,
+            authority_source=current.authority_source,
+            authority_path=current.authority_path,
+        )
+        self._record(action, context, current, executed=True, outcome=decision.kind.value)
+        return InterceptionResult(
+            decision=decision,
+            initial_decision=current,
+            executed=True,
+            value=operation(),
+            approval_request_id=request_id,
         )
 
     intercept = execute
