@@ -11,6 +11,7 @@ from .audit import AuditLog, replay_event
 from .interceptor import Interceptor
 from .model import Action, Actor, Capability, Context
 from .compiler import compile_policy
+from .versioning import PolicyBundle
 
 
 def _policy(path: Path, roles: list[str]):
@@ -71,6 +72,20 @@ def _build_parser() -> argparse.ArgumentParser:
     validate.add_argument("policy", type=Path)
     validate.add_argument("--role", action="append", default=[])
 
+    export = subparsers.add_parser("policy-export", help="create a versioned policy bundle")
+    export.add_argument("policy", type=Path)
+    export.add_argument("--policy-id", required=True)
+    export.add_argument("--policy-version", required=True)
+    export.add_argument("--role", action="append", default=[])
+    export.add_argument("--output", type=Path)
+
+    imported = subparsers.add_parser("policy-import", help="validate a versioned policy bundle")
+    imported.add_argument("bundle", type=Path)
+
+    diff = subparsers.add_parser("policy-diff", help="compare two versioned policy bundles")
+    diff.add_argument("before", type=Path)
+    diff.add_argument("after", type=Path)
+
     tool_call = subparsers.add_parser("tool-call", help="evaluate one pre-execution tool call")
     tool_call.add_argument("--policy", type=Path, required=True)
     tool_call.add_argument("--role", action="append", default=[])
@@ -103,6 +118,33 @@ def main(argv: list[str] | None = None) -> int:
             "roles": sorted(policy.roles),
             "default_decision": policy.default_decision.value,
         }, indent=2, sort_keys=True))
+        return 0
+    if args.command == "policy-export":
+        bundle = PolicyBundle.from_source(
+            args.policy.read_text(encoding="utf-8"),
+            policy_id=args.policy_id,
+            policy_version=args.policy_version,
+            roles=args.role,
+        )
+        payload = json.dumps(bundle.to_dict(), indent=2, sort_keys=True) + "\n"
+        if args.output:
+            args.output.parent.mkdir(parents=True, exist_ok=True)
+            args.output.write_text(payload, encoding="utf-8")
+        print(payload, end="")
+        return 0
+    if args.command == "policy-import":
+        bundle = PolicyBundle.from_json(args.bundle.read_text(encoding="utf-8"))
+        print(json.dumps({
+            "valid": True,
+            "policy_id": bundle.policy_id,
+            "policy_version": bundle.policy_version,
+            "content_hash": bundle.content_hash,
+        }, indent=2, sort_keys=True))
+        return 0
+    if args.command == "policy-diff":
+        before = PolicyBundle.from_json(args.before.read_text(encoding="utf-8"))
+        after = PolicyBundle.from_json(args.after.read_text(encoding="utf-8"))
+        print(json.dumps(before.diff(after), indent=2, sort_keys=True))
         return 0
     if args.command == "tool-call":
         policy = _policy(args.policy, args.role)

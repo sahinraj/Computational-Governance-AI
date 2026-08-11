@@ -3,7 +3,7 @@
 **A policy language and compiler that enforces organizational rules on autonomous agents at runtime.**
 
 Owner: Sahin Raj
-Status: Reference implementation v0.3 — M1–M21 complete; Phase 3 complete
+Status: Reference implementation v0.3 — M1–M21 complete; M22 in progress
 Last updated: 2026-08-09
 
 ---
@@ -187,6 +187,7 @@ Work in order. Do not proceed until the milestone acceptance check passes.
 - **M19 — Deterministic model-based assurance.** Generate seeded governance traces and compare core transitions with an independent finite-state oracle, including invalid-transition mutation checks. *Accept:* 1,000 traces are reproducible, all invariants pass, and widening, cycles, stale bindings, and replay are demonstrably rejected.
 - **M20 — Quorum-based human approvals.** Add a declarative distinct-reviewer quorum, exact-state vote binding, durable vote state, and versioned conformance fields. *Accept:* a 2-of-3 approval requires two named roles, rejects duplicate/unknown/stale votes, handles denial and expiry, and resumes one exact action only once.
 - **M21 — v0.3 end-to-end integration release.** Deliver the CLI, durable/quorum/replay fixture, package metadata, release documentation, and CI gates. *Accept:* a clean install exposes validation, tool-call, replay, conformance, and assurance commands; the full suite passes; and the release artifact reports v0.3.0.
+- **M22 — Stable policy and protocol versioning.** Add policy IDs, semantic content hashes, bundle import/export, compatibility checks, semantic diffs, and explicit rollback protection. *Accept:* equivalent bundles hash identically, tampered/incompatible bundles fail closed, semantic diffs identify rule/approval/default changes, and rollback events are auditable.
 
 ## 9. Definition of done
 
@@ -232,6 +233,7 @@ Prefer deterministic logic in the enforcement path. Enforcement must not depend 
 - [2026-08-09] M19 — seeded model-based assurance runner added with an independent finite-state oracle; 1,000 traces produce 12,000 passing invariant checks and reject 3,000 invalid transitions.
 - [2026-08-09] M20 — declarative quorum approval policies, distinct reviewer votes, exact binding, persisted vote state, and additive conformance fields added; 2-of-3 denial, expiry, and replay cases fail closed.
 - [2026-08-09] M21 — v0.3 CLI, end-to-end persistence/quorum/replay fixture, release metadata, CI assurance gates, and Phase 3 documentation completed.
+- [2026-08-10] M22 — policy bundle versioning, semantic content hashes, import/export validation, semantic diffs, CLI commands, and explicit rollback protection implemented; acceptance verification is in progress.
 
 ## 12. Open implementation questions
 
