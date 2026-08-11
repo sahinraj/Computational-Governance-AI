@@ -152,6 +152,8 @@ resumes only after the exact threshold is reached.
 
 The reference implementation ships first as the load-bearing systems result. GovernanceBench is built in parallel. Later theory papers (delegation algebra, identity, governance complexity, temporal and cross-system governance) extend the frozen foundations rather than replacing them. See [`spec/field-and-benchmark.md`](spec/field-and-benchmark.md).
 
+The professionalization plan is tracked in [`docs/roadmap.md`](docs/roadmap.md).
+
 ## License
 
 Apache-2.0. See [LICENSE](LICENSE).
