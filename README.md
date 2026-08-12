@@ -69,7 +69,7 @@ docs/              GitHub Pages site
 | M19 | Deterministic model-based assurance | ✅ |
 | M20 | Quorum-based human approvals | ✅ |
 | M21 | v0.3 end-to-end integration release | ✅ |
-| M22 | Stable policy and protocol versioning | 🚧 |
+| M22 | Stable policy and protocol versioning | ✅ |
 
 ## Quickstart
 
