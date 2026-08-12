@@ -27,6 +27,14 @@ from .interceptor import (
     ApprovalStub, InterceptionResult, Interceptor, InterceptorMode,
 )
 from .storage import AtomicJsonStore, JsonlAuditStore, StoreError
+from .versioning import (
+    POLICY_BUNDLE_VERSION,
+    PolicyBundle,
+    PolicyVersionEvent,
+    PolicyVersionStore,
+    VersioningError,
+    policy_semantics,
+)
 
 __all__ = [
     "Actor", "Capability", "Action", "Context", "Decision", "DecisionKind",
@@ -43,4 +51,6 @@ __all__ = [
     "AuthorityProof", "DelegationGraph", "Grant", "ApprovalStub", "InterceptionResult",
     "Interceptor", "InterceptorMode",
     "AtomicJsonStore", "JsonlAuditStore", "StoreError",
+    "POLICY_BUNDLE_VERSION", "PolicyBundle", "PolicyVersionEvent",
+    "PolicyVersionStore", "VersioningError", "policy_semantics",
 ]

@@ -69,6 +69,7 @@ docs/              GitHub Pages site
 | M19 | Deterministic model-based assurance | ✅ |
 | M20 | Quorum-based human approvals | ✅ |
 | M21 | v0.3 end-to-end integration release | ✅ |
+| M22 | Stable policy and protocol versioning | 🚧 |
 
 ## Quickstart
 
@@ -151,6 +152,8 @@ resumes only after the exact threshold is reached.
 ## Roadmap
 
 The reference implementation ships first as the load-bearing systems result. GovernanceBench is built in parallel. Later theory papers (delegation algebra, identity, governance complexity, temporal and cross-system governance) extend the frozen foundations rather than replacing them. See [`spec/field-and-benchmark.md`](spec/field-and-benchmark.md).
+
+The professionalization plan is tracked in [`docs/roadmap.md`](docs/roadmap.md).
 
 ## License
 
