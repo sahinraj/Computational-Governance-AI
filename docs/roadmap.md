@@ -1,9 +1,9 @@
 # Professionalization Roadmap
 
-**Project:** Computational Governance for Autonomous Systems  
-**Current release:** v0.3.0  
-**Current state:** Phase 3 complete; Phase 4 starting  
-**Roadmap date:** 2026-08-10
+**Project:** Computational Governance for Autonomous Systems
+**Current release:** v0.3.0
+**Current state:** Phase 3 complete; Phase 4 starting
+**Roadmap date:** 2026-08-11
 
 ## North-star direction
 
@@ -43,7 +43,7 @@ lifecycle controls, independent security evidence, and a real-world pilot.
 
 ## Phase 4 — Production Trust Boundary
 
-**Suggested duration:** 6–8 weeks  
+**Suggested duration:** 6–8 weeks
 **Objective:** Build the smallest credible production kernel around the
 existing deterministic governance engine.
 

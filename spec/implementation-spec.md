@@ -233,7 +233,7 @@ Prefer deterministic logic in the enforcement path. Enforcement must not depend 
 - [2026-08-09] M19 — seeded model-based assurance runner added with an independent finite-state oracle; 1,000 traces produce 12,000 passing invariant checks and reject 3,000 invalid transitions.
 - [2026-08-09] M20 — declarative quorum approval policies, distinct reviewer votes, exact binding, persisted vote state, and additive conformance fields added; 2-of-3 denial, expiry, and replay cases fail closed.
 - [2026-08-09] M21 — v0.3 CLI, end-to-end persistence/quorum/replay fixture, release metadata, CI assurance gates, and Phase 3 documentation completed.
-- [2026-08-10] M22 — policy bundle versioning, semantic content hashes, import/export validation, semantic diffs, CLI commands, and explicit rollback protection implemented; acceptance verification is in progress.
+- [2026-08-11] M22 — policy bundle versioning, semantic content hashes, import/export validation, semantic diffs, CLI commands, and explicit rollback protection implemented; acceptance verification is in progress.
 
 ## 12. Open implementation questions
 
