@@ -3,8 +3,8 @@
 **A policy language and compiler that enforces organizational rules on autonomous agents at runtime.**
 
 Owner: Sahin Raj
-Status: Reference implementation v0.3 — M1–M22 complete; Phase 4 in progress
-Last updated: 2026-08-09
+Status: Reference implementation v0.3 — M1–M23 complete; Phase 4 in progress
+Last updated: 2026-08-14
 
 ---
 
@@ -244,7 +244,7 @@ Prefer deterministic logic in the enforcement path. Enforcement must not depend 
 - Context integration: `Context` fields are implemented; external runtimes provide the adapter that supplies current state.
 - Escalation behavior: synchronous human stub in the reference implementation; asynchronous continuation and multi-reviewer quorum remain integration paths.
 - Benchmark breadth: resolved for v0.2 at three hand-authored scenarios per category; future releases may add domain-specific packs without changing the core schema.
-- Delegation identity: provenance is explicit within the reference graph; cryptographic credentials and external identity-provider integration remain out of scope.
+- Delegation identity: provider-neutral verified identity, deterministic role mapping, and rotation-safe provenance are implemented at M23; production attestation-provider integration remains an M24/deployment concern.
 - Audit retention: the reference implementation exports append-only JSONL; centralized storage and distributed tracing remain integration responsibilities.
 - Approval integration: the reference manager is in-memory and role-based; external identity, email/chat delivery, durable storage, and quorum remain integration paths.
 - Conformance: v1.0 JSON envelopes and additive compatibility rules are defined; network transport and authentication remain integration paths.

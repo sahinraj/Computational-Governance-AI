@@ -70,6 +70,7 @@ docs/              GitHub Pages site
 | M20 | Quorum-based human approvals | ✅ |
 | M21 | v0.3 end-to-end integration release | ✅ |
 | M22 | Stable policy and protocol versioning | ✅ |
+| M23 | Authenticated workload and actor identity | ✅ |
 
 ## Quickstart
 
