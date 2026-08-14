@@ -2,8 +2,8 @@
 
 **Project:** Computational Governance for Autonomous Systems
 **Current release:** v0.3.0
-**Current state:** Phase 3 complete; Phase 4 starting
-**Roadmap date:** 2026-08-11
+**Current state:** Phase 3 complete; M22–M23 complete; Phase 4 in progress
+**Roadmap date:** 2026-08-14
 
 ## North-star direction
 
@@ -228,5 +228,5 @@ latency, auditability, and operator-acceptance targets.
 
 ## Immediate next action
 
-Complete M23 on a dedicated branch with acceptance tests before implementation
-of the dependent M24 service boundary.
+Begin M24 on a dedicated branch with acceptance tests for the service API and
+production SDK boundary.
