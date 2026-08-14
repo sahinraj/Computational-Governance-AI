@@ -91,6 +91,18 @@ class Action:
     actor: Actor
     capability: Capability
     params: dict = field(default_factory=dict)
+    identity_reference: Optional[str] = None
+    identity_roles: tuple[str, ...] = ()
+
+    def __post_init__(self):
+        if self.identity_reference == "":
+            raise ValueError("identity reference cannot be empty")
+        roles = tuple(self.identity_roles)
+        if any(not isinstance(role, str) or not role for role in roles):
+            raise ValueError("identity roles must be non-empty strings")
+        if len(set(roles)) != len(roles):
+            raise ValueError("identity roles must be distinct")
+        object.__setattr__(self, "identity_roles", tuple(sorted(roles)))
 
 
 @dataclass(frozen=True)

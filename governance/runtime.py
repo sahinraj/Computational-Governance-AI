@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Callable, Mapping, Optional
 
+from .identity import IdentityVerifier, VerifiedIdentity
 from .interceptor import InterceptionResult, Interceptor, InterceptorMode
 from .model import Action, Actor, Capability, Context, Decision, DecisionKind
 
@@ -21,6 +22,7 @@ class ToolCall:
     capability: Capability | str
     params: Mapping[str, Any] = field(default_factory=dict)
     request_id: Optional[str] = None
+    credential: Optional[Mapping[str, Any]] = None
 
     def __post_init__(self):
         capability = (
@@ -34,9 +36,19 @@ class ToolCall:
         object.__setattr__(self, "params", dict(self.params))
         if self.request_id == "":
             raise RuntimeAdapterError("request_id cannot be empty")
+        if self.credential is not None:
+            if not isinstance(self.credential, Mapping):
+                raise RuntimeAdapterError("identity credential must be an object")
+            object.__setattr__(self, "credential", dict(self.credential))
 
-    def to_action(self) -> Action:
-        return Action(self.actor, self.capability, dict(self.params))
+    def to_action(self, identity: Optional[VerifiedIdentity] = None) -> Action:
+        return Action(
+            self.actor,
+            self.capability,
+            dict(self.params),
+            identity_reference=None if identity is None else identity.identity_reference,
+            identity_roles=() if identity is None else identity.roles,
+        )
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -44,6 +56,7 @@ class ToolCall:
             "capability": self.capability.name,
             "params": dict(self.params),
             "request_id": self.request_id,
+            "identity_credential_present": self.credential is not None,
         }
 
 
@@ -55,11 +68,13 @@ class RuntimeAdapter:
         interceptor: Interceptor,
         *,
         shadow_error_mode: str = "allow",
+        identity_verifier: Optional[IdentityVerifier] = None,
     ):
         if shadow_error_mode not in {"allow", "raise"}:
             raise RuntimeAdapterError("shadow_error_mode must be allow or raise")
         self.interceptor = interceptor
         self.shadow_error_mode = shadow_error_mode
+        self.identity_verifier = identity_verifier
         self._completed_request_ids: set[str] = set()
 
     def _error_result(
@@ -107,7 +122,34 @@ class RuntimeAdapter:
             )
             return InterceptionResult(decision=decision, initial_decision=decision, executed=False)
 
-        action = call.to_action()
+        try:
+            identity = (
+                None
+                if self.identity_verifier is None
+                else self.identity_verifier.verify(
+                    call.credential,
+                    actor_id=call.actor.id,
+                    now=context.now,
+                )
+            )
+        except Exception as error:
+            # Identity failures always fail closed, including when the
+            # surrounding adapter is in shadow mode. No unverified actor may
+            # cross the tool-execution boundary.
+            action = call.to_action()
+            decision = self.interceptor.record_governance_error(
+                action,
+                context,
+                f"identity verification failed: {type(error).__name__}: {error}",
+                executed=False,
+            )
+            return InterceptionResult(
+                decision=decision,
+                initial_decision=decision,
+                executed=False,
+            )
+
+        action = call.to_action(identity)
         shadow = self.interceptor.mode is InterceptorMode.SHADOW
         operation_started = False
 

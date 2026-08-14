@@ -99,6 +99,8 @@ class Interceptor:
             "matched_rules": decision.matched_rules,
             "authority_source": decision.authority_source,
             "authority_path": decision.authority_path,
+            "identity_reference": action.identity_reference,
+            "identity_roles": action.identity_roles,
             "mode": self.mode.value,
             "event_id": audit_event.event_id,
             "trace_id": audit_event.trace_id,

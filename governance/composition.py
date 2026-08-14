@@ -169,7 +169,12 @@ def evaluate_rules(
     authority_source = ""
     authority_path: tuple[str, ...] = ()
     if delegation is not None:
-        proof = delegation.authority_proof(action.actor, action.capability, context.now)
+        proof = delegation.authority_proof(
+            action.actor,
+            action.capability,
+            context.now,
+            identity_reference=action.identity_reference,
+        )
         authority_source = proof.source
         authority_path = proof.path
     if delegation is not None and not proof.allowed:

@@ -7,6 +7,7 @@ from enum import Enum
 from typing import Any, Optional
 
 from .audit import action_fingerprint, context_fingerprint, policy_fingerprint, state_fingerprint
+from .identity import VerifiedIdentity
 from .model import Action, Context, Decision, DecisionKind
 
 
@@ -39,9 +40,11 @@ class ApprovalRequest:
     votes: tuple[str, ...] = ()
     state: ApprovalState = ApprovalState.PENDING
     consumed: bool = False
+    identity_reference: Optional[str] = None
+    vote_identity_references: tuple[tuple[str, str], ...] = ()
 
     def to_dict(self) -> dict:
-        return {
+        value = {
             "id": self.id,
             "role": self.role,
             "action_fingerprint": self.action_fingerprint,
@@ -57,18 +60,32 @@ class ApprovalRequest:
             "state": self.state.value,
             "consumed": self.consumed,
         }
+        if self.identity_reference is not None:
+            value["identity_reference"] = self.identity_reference
+        if self.vote_identity_references:
+            value["vote_identity_references"] = {
+                role: reference for role, reference in self.vote_identity_references
+            }
+        return value
 
 
 class ApprovalManager:
     """In-memory approval lifecycle with fail-closed, single-use semantics."""
 
-    def __init__(self, *, ttl: float = 300.0, request_prefix: str = "approval"):
+    def __init__(
+        self,
+        *,
+        ttl: float = 300.0,
+        request_prefix: str = "approval",
+        require_identity: bool = False,
+    ):
         if ttl <= 0:
             raise ValueError("approval ttl must be positive")
         if not request_prefix:
             raise ValueError("approval request prefix cannot be empty")
         self.ttl = float(ttl)
         self.request_prefix = request_prefix
+        self.require_identity = bool(require_identity)
         self._next_id = 1
         self._requests: dict[str, ApprovalRequest] = {}
 
@@ -85,6 +102,8 @@ class ApprovalManager:
     ) -> ApprovalRequest:
         if decision.kind is not DecisionKind.ESCALATE or not decision.role:
             raise ApprovalError("only Escalate decisions can create approval requests")
+        if self.require_identity and action.identity_reference is None:
+            raise ApprovalError("authenticated requester identity is required")
         effective_ttl = self.ttl if ttl is None else float(ttl)
         if effective_ttl <= 0:
             raise ApprovalError("approval ttl must be positive")
@@ -103,6 +122,7 @@ class ApprovalManager:
             expires_at=created_at + effective_ttl,
             required_roles=decision.approval_roles or (decision.role,),
             threshold=decision.approval_threshold or 1,
+            identity_reference=action.identity_reference,
         )
         self._requests[request_id] = request
         return request
@@ -157,6 +177,7 @@ class ApprovalManager:
         *,
         delegation=None,
         now: Optional[float] = None,
+        identity: Any = None,
     ) -> ApprovalRequest:
         request = self._get(request_id, now)
         if request.state is not ApprovalState.PENDING:
@@ -165,8 +186,27 @@ class ApprovalManager:
             raise ApprovalError(self._role_error(request))
         if role in request.votes:
             raise ApprovalError(f"role {role} has already voted on {request.id}")
+        if self.require_identity and identity is None:
+            raise ApprovalError("authenticated approver identity is required")
+        identity_reference = None
+        if identity is not None:
+            if not isinstance(identity, VerifiedIdentity):
+                raise ApprovalError("approver identity must be provider-verified")
+            current = request.created_at if now is None else float(now)
+            if not identity.is_valid_at(current):
+                raise ApprovalError("authenticated approver identity is expired")
+            roles = tuple(getattr(identity, "roles", ()))
+            identity_reference = getattr(identity, "identity_reference", None)
+            if role not in roles or not identity_reference:
+                raise ApprovalError(
+                    f"authenticated identity is not authorized for role {role}"
+                )
         self._check_binding(request, policy, action, context, delegation)
         request.votes = request.votes + (role,)
+        if identity_reference is not None:
+            request.vote_identity_references = request.vote_identity_references + (
+                (role, identity_reference),
+            )
         if len(request.votes) >= request.threshold:
             request.state = ApprovalState.APPROVED
         return request
@@ -211,6 +251,7 @@ class ApprovalManager:
             "schema_version": "1.0",
             "ttl": self.ttl,
             "request_prefix": self.request_prefix,
+            "require_identity": self.require_identity,
             "next_id": self._next_id,
             "requests": [
                 request.to_dict()
@@ -229,6 +270,7 @@ class ApprovalManager:
             manager = cls(
                 ttl=float(snapshot["ttl"]),
                 request_prefix=str(snapshot["request_prefix"]),
+                require_identity=bool(snapshot.get("require_identity", False)),
             )
             next_id = snapshot["next_id"]
             requests = snapshot["requests"]
@@ -257,6 +299,11 @@ class ApprovalManager:
                     votes=tuple(str(role) for role in item.get("votes", ())),
                     state=ApprovalState(str(item["state"])),
                     consumed=bool(item["consumed"]),
+                    identity_reference=item.get("identity_reference"),
+                    vote_identity_references=tuple(
+                        (str(role), str(reference))
+                        for role, reference in item.get("vote_identity_references", {}).items()
+                    ),
                 )
             except (KeyError, TypeError, ValueError) as exc:
                 raise ApprovalError("invalid approval request snapshot fields") from exc
@@ -275,6 +322,10 @@ class ApprovalManager:
                 raise ApprovalError("invalid approval quorum snapshot values")
             if request.consumed and request.state is not ApprovalState.APPROVED:
                 raise ApprovalError("only approved requests can be consumed")
+            if len({role for role, _ in request.vote_identity_references}) != len(
+                request.vote_identity_references
+            ) or any(role not in request.votes for role, _ in request.vote_identity_references):
+                raise ApprovalError("invalid approval identity vote references")
             manager._requests[request.id] = request
         manager._next_id = next_id
         return manager

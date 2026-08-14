@@ -158,6 +158,8 @@ class AuditEventEnvelope:
     executed: Optional[bool] = None
     outcome: Optional[str] = None
     event_version: str = AUDIT_EVENT_VERSION
+    identity_reference: Optional[str] = None
+    identity_roles: tuple[str, ...] = ()
 
     def __post_init__(self):
         if self.event_version != AUDIT_EVENT_VERSION:
@@ -199,6 +201,8 @@ class AuditEventEnvelope:
             executed=value.get("executed"),
             outcome=value.get("outcome"),
             event_version=str(value["event_version"]),
+            identity_reference=value.get("identity_reference"),
+            identity_roles=tuple(str(role) for role in value.get("identity_roles", ())),
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -224,4 +228,7 @@ class AuditEventEnvelope:
             "executed": self.executed,
             "outcome": self.outcome,
         }
+        if self.identity_reference is not None:
+            value["identity_reference"] = self.identity_reference
+            value["identity_roles"] = list(self.identity_roles)
         return value

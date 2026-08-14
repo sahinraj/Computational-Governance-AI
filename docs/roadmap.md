@@ -228,5 +228,5 @@ latency, auditability, and operator-acceptance targets.
 
 ## Immediate next action
 
-Create the Phase 4 GitHub milestone and issues M22–M27, then begin M22 on a
-dedicated branch with acceptance tests before implementation.
+Complete M23 on a dedicated branch with acceptance tests before implementation
+of the dependent M24 service boundary.
