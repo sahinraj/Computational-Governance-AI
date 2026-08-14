@@ -30,6 +30,7 @@ class Grant:
     expires_at: Optional[float] = None
     parent_grant_id: Optional[str] = None
     granting_rule_id: Optional[str] = None
+    identity_reference: Optional[str] = None
 
 
 @dataclass(frozen=True)
@@ -40,6 +41,7 @@ class AuthorityProof:
     source: str
     path: tuple[str, ...] = ()
     reason: str = ""
+    identity_reference: Optional[str] = None
 
 
 class DelegationGraph:
@@ -131,6 +133,7 @@ class DelegationGraph:
         expires_at: Optional[float] = None,
         now: float = 0.0,
         granting_rule_id: Optional[str] = None,
+        identity_reference: Optional[str] = None,
     ) -> Grant:
         if depth < 0:
             raise DelegationError("grant depth cannot be negative")
@@ -175,6 +178,7 @@ class DelegationGraph:
             expires_at=expires_at,
             parent_grant_id=parent_id,
             granting_rule_id=granting_rule_id,
+            identity_reference=identity_reference,
         )
         self._grants[grant_id] = grant
         return grant
@@ -198,7 +202,12 @@ class DelegationGraph:
         return self.authority_proof(actor, capability, now).allowed
 
     def authority_proof(
-        self, actor: Actor | str, capability: Capability | str, now: float = 0.0
+        self,
+        actor: Actor | str,
+        capability: Capability | str,
+        now: float = 0.0,
+        *,
+        identity_reference: Optional[str] = None,
     ) -> AuthorityProof:
         """Return deterministic provenance for intrinsic or delegated authority."""
         actor_id = _actor_id(actor)
@@ -213,6 +222,7 @@ class DelegationGraph:
                 source="intrinsic",
                 path=(f"actor:{actor_id}",),
                 reason="intrinsic capability is valid",
+                identity_reference=identity_reference,
             )
 
         candidates = [
@@ -230,11 +240,13 @@ class DelegationGraph:
                 source="delegated",
                 path=path,
                 reason="active delegated capability is valid",
+                identity_reference=identity_reference,
             )
         return AuthorityProof(
             allowed=False,
             source="none",
             reason="no intrinsic or active delegated capability",
+            identity_reference=identity_reference,
         )
 
     def grants(self) -> tuple[Grant, ...]:
@@ -262,6 +274,10 @@ class DelegationGraph:
                     "expires_at": grant.expires_at,
                     "parent_grant_id": grant.parent_grant_id,
                     "granting_rule_id": grant.granting_rule_id,
+                    **(
+                        {"identity_reference": grant.identity_reference}
+                        if grant.identity_reference is not None else {}
+                    ),
                 }
                 for grant in self.grants()
             ],
@@ -313,6 +329,7 @@ class DelegationGraph:
                     expires_at=item.get("expires_at"),
                     parent_grant_id=item.get("parent_grant_id"),
                     granting_rule_id=item.get("granting_rule_id"),
+                    identity_reference=item.get("identity_reference"),
                 )
             except (TypeError, ValueError) as exc:
                 raise DelegationError("invalid grant snapshot fields") from exc

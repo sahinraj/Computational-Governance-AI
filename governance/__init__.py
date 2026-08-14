@@ -35,6 +35,13 @@ from .versioning import (
     VersioningError,
     policy_semantics,
 )
+from .identity import (
+    IdentityError,
+    IdentityProvider,
+    IdentityVerifier,
+    SignedTestIdentityProvider,
+    VerifiedIdentity,
+)
 
 __all__ = [
     "Actor", "Capability", "Action", "Context", "Decision", "DecisionKind",
@@ -53,4 +60,6 @@ __all__ = [
     "AtomicJsonStore", "JsonlAuditStore", "StoreError",
     "POLICY_BUNDLE_VERSION", "PolicyBundle", "PolicyVersionEvent",
     "PolicyVersionStore", "VersioningError", "policy_semantics",
+    "IdentityError", "IdentityProvider", "IdentityVerifier",
+    "SignedTestIdentityProvider", "VerifiedIdentity",
 ]

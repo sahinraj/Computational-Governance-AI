@@ -188,6 +188,7 @@ Work in order. Do not proceed until the milestone acceptance check passes.
 - **M20 — Quorum-based human approvals.** Add a declarative distinct-reviewer quorum, exact-state vote binding, durable vote state, and versioned conformance fields. *Accept:* a 2-of-3 approval requires two named roles, rejects duplicate/unknown/stale votes, handles denial and expiry, and resumes one exact action only once.
 - **M21 — v0.3 end-to-end integration release.** Deliver the CLI, durable/quorum/replay fixture, package metadata, release documentation, and CI gates. *Accept:* a clean install exposes validation, tool-call, replay, conformance, and assurance commands; the full suite passes; and the release artifact reports v0.3.0.
 - **M22 — Stable policy and protocol versioning.** Add policy IDs, semantic content hashes, bundle import/export, compatibility checks, semantic diffs, and explicit rollback protection. *Accept:* equivalent bundles hash identically, tampered/incompatible bundles fail closed, semantic diffs identify rule/approval/default changes, and rollback events are auditable.
+- **M23 — Authenticated workload and actor identity.** Add a provider-neutral verified identity interface, a signed test-credential adapter, deterministic role mapping, runtime subject binding, identity-aware delegation and approval provenance, and rotation-safe audit references. *Accept:* missing, expired, wrong-domain, forged, and impersonated identities fail closed before execution; valid claims map deterministically to roles; delegation and approval evidence carries the verified identity reference; restart and credential rotation preserve historical audit replay.
 
 ## 9. Definition of done
 
@@ -234,6 +235,7 @@ Prefer deterministic logic in the enforcement path. Enforcement must not depend 
 - [2026-08-09] M20 — declarative quorum approval policies, distinct reviewer votes, exact binding, persisted vote state, and additive conformance fields added; 2-of-3 denial, expiry, and replay cases fail closed.
 - [2026-08-09] M21 — v0.3 CLI, end-to-end persistence/quorum/replay fixture, release metadata, CI assurance gates, and Phase 3 documentation completed.
 - [2026-08-11] M22 — policy bundle versioning, semantic content hashes, import/export validation, semantic diffs, CLI commands, and explicit rollback protection implemented; 79 tests and all release gates passed.
+- [2026-08-13] M23 — provider-neutral verified identity, signed test credentials, deterministic role mapping, fail-closed runtime binding, identity-aware delegation and approvals, rotation-safe audit references, fixtures, and threat model added; acceptance coverage is implemented and the full suite passes.
 
 ## 12. Open implementation questions
 

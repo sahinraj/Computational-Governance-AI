@@ -54,7 +54,7 @@ def policy_fingerprint(policy) -> str:
 
 
 def action_fingerprint(action: Action) -> str:
-    return fingerprint({
+    value = {
         "actor": {
             "id": action.actor.id,
             "authority_level": action.actor.authority_level,
@@ -63,7 +63,15 @@ def action_fingerprint(action: Action) -> str:
         },
         "capability": action.capability.name,
         "params": action.params,
-    })
+    }
+    # Preserve fingerprints for legacy in-memory actions while binding
+    # authenticated actions to their verified principal and mapped roles.
+    if action.identity_reference is not None:
+        value["identity"] = {
+            "reference": action.identity_reference,
+            "roles": list(action.identity_roles),
+        }
+    return fingerprint(value)
 
 
 def context_fingerprint(context: Context) -> str:
@@ -77,20 +85,23 @@ def context_fingerprint(context: Context) -> str:
 def delegation_snapshot(delegation) -> Optional[dict[str, Any]]:
     if delegation is None:
         return None
+    grants = []
+    for grant in delegation.grants():
+        value = {
+            "id": grant.id,
+            "from_actor": grant.from_actor,
+            "to_actor": grant.to_actor,
+            "capability": grant.capability.name,
+            "depth": grant.depth,
+            "expires_at": grant.expires_at,
+            "parent_grant_id": grant.parent_grant_id,
+            "granting_rule_id": grant.granting_rule_id,
+        }
+        if getattr(grant, "identity_reference", None) is not None:
+            value["identity_reference"] = grant.identity_reference
+        grants.append(value)
     return {
-        "grants": [
-            {
-                "id": grant.id,
-                "from_actor": grant.from_actor,
-                "to_actor": grant.to_actor,
-                "capability": grant.capability.name,
-                "depth": grant.depth,
-                "expires_at": grant.expires_at,
-                "parent_grant_id": grant.parent_grant_id,
-                "granting_rule_id": grant.granting_rule_id,
-            }
-            for grant in delegation.grants()
-        ],
+        "grants": grants,
         "revoked": list(delegation.revoked_grants()),
     }
 
@@ -126,6 +137,8 @@ class DecisionEvent:
     executed: Optional[bool] = None
     outcome: Optional[str] = None
     event_version: str = AUDIT_EVENT_VERSION
+    identity_reference: Optional[str] = None
+    identity_roles: tuple[str, ...] = ()
 
     def __post_init__(self):
         if self.decision not in {kind.value for kind in DecisionKind}:
@@ -172,10 +185,12 @@ class DecisionEvent:
             approval_threshold=decision.approval_threshold,
             executed=executed,
             outcome=outcome or decision.kind.value,
+            identity_reference=action.identity_reference,
+            identity_roles=action.identity_roles,
         )
 
     def to_dict(self) -> dict[str, Any]:
-        return {
+        value = {
             "event_version": self.event_version,
             "event_id": self.event_id,
             "trace_id": self.trace_id,
@@ -197,6 +212,12 @@ class DecisionEvent:
             "executed": self.executed,
             "outcome": self.outcome,
         }
+        # Keep historical v1 records byte-compatible unless they carry M23
+        # identity provenance.
+        if self.identity_reference is not None:
+            value["identity_reference"] = self.identity_reference
+            value["identity_roles"] = list(self.identity_roles)
+        return value
 
     def to_json(self) -> str:
         return _canonical(self.to_dict())
@@ -233,6 +254,8 @@ class DecisionEvent:
             executed=value.get("executed"),
             outcome=value.get("outcome"),
             event_version=str(value.get("event_version", AUDIT_EVENT_VERSION)),
+            identity_reference=value.get("identity_reference"),
+            identity_roles=tuple(str(role) for role in value.get("identity_roles", ())),
         )
 
 
@@ -327,4 +350,8 @@ def replay_event(
         drift.append("authority_source")
     if decision.authority_path != event.authority_path:
         drift.append("authority_path")
+    if event.identity_reference != action.identity_reference:
+        drift.append("identity")
+    if event.identity_roles != action.identity_roles:
+        drift.append("identity_roles")
     return ReplayResult(decision=decision, drift=tuple(dict.fromkeys(drift)))

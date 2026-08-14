@@ -23,7 +23,9 @@
     "approval_threshold": {"type": "integer", "minimum": 0},
     "mode": {"enum": ["shadow", "enforce"]},
     "executed": {"type": ["boolean", "null"]},
-    "outcome": {"type": ["string", "null"]}
+    "outcome": {"type": ["string", "null"]},
+    "identity_reference": {"type": ["string", "null"]},
+    "identity_roles": {"type": "array", "items": {"type": "string"}}
   },
   "additionalProperties": false
 }
