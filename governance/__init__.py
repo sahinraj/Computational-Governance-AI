@@ -42,6 +42,22 @@ from .identity import (
     SignedTestIdentityProvider,
     VerifiedIdentity,
 )
+from .service import (
+    SERVICE_SCHEMA_VERSION,
+    DecisionRequest,
+    GovernanceHTTPServer,
+    GovernanceService,
+    ServiceError,
+    ServiceResponse,
+    create_http_server,
+    serve_http,
+)
+from .sdk import (
+    GovernanceClient,
+    HTTPTransport,
+    InProcessTransport,
+    ServiceClientError,
+)
 
 __all__ = [
     "Actor", "Capability", "Action", "Context", "Decision", "DecisionKind",
@@ -62,4 +78,8 @@ __all__ = [
     "PolicyVersionStore", "VersioningError", "policy_semantics",
     "IdentityError", "IdentityProvider", "IdentityVerifier",
     "SignedTestIdentityProvider", "VerifiedIdentity",
+    "SERVICE_SCHEMA_VERSION", "DecisionRequest", "GovernanceService",
+    "GovernanceHTTPServer", "ServiceError", "ServiceResponse",
+    "create_http_server", "GovernanceClient", "HTTPTransport",
+    "serve_http", "InProcessTransport", "ServiceClientError",
 ]
