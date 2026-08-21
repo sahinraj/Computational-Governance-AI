@@ -64,7 +64,13 @@ class DelegationGraph:
             for granted in self._intrinsic.get(actor, ())
         )
 
-    def _valid_grant(self, grant: Grant, now: float) -> bool:
+    def _valid_grant(
+        self, grant: Grant, now: float, seen: Optional[set[str]] = None
+    ) -> bool:
+        seen = set() if seen is None else seen
+        if grant.id in seen:
+            return False
+        seen.add(grant.id)
         if grant.id in self._revoked:
             return False
         if grant.expires_at is not None and now >= grant.expires_at:
@@ -72,7 +78,15 @@ class DelegationGraph:
         if grant.parent_grant_id is None:
             return self._intrinsic_has(grant.from_actor, grant.capability)
         parent = self._grants.get(grant.parent_grant_id)
-        return parent is not None and self._valid_grant(parent, now)
+        if parent is None:
+            return False
+        if parent.to_actor != grant.from_actor:
+            return False
+        if not grant.capability.is_descendant_of(parent.capability):
+            return False
+        if grant.depth > parent.depth - 1:
+            return False
+        return self._valid_grant(parent, now, seen)
 
     def _source_grant(self, grantor: str, capability: Capability, now: float) -> Optional[Grant]:
         candidates = [
@@ -138,7 +152,7 @@ class DelegationGraph:
         if depth < 0:
             raise DelegationError("grant depth cannot be negative")
         requested = _capability(capability)
-        source = _capability(scope or capability)
+        source = _capability(capability if scope is None else scope)
         if not source.name:
             raise DelegationError("capability scope cannot be empty")
         if not source.is_descendant_of(requested):
@@ -336,15 +350,34 @@ class DelegationGraph:
             if grant.depth < 0 or not grant.from_actor or not grant.to_actor:
                 raise DelegationError("invalid grant snapshot values")
             graph._grants[grant.id] = grant
-        graph._revoked = set()
+        revoked_ids: set[str] = set()
         for grant_id in revoked:
             if not isinstance(grant_id, str) or grant_id not in graph._grants:
                 raise DelegationError("revoked grant must reference a known grant")
-            graph._revoked.add(grant_id)
+            revoked_ids.add(grant_id)
         for grant in graph._grants.values():
             if grant.parent_grant_id is not None and grant.parent_grant_id not in graph._grants:
                 raise DelegationError("grant parent must reference a known grant")
+            if grant.parent_grant_id is not None:
+                parent = graph._grants[grant.parent_grant_id]
+                if parent.to_actor != grant.from_actor:
+                    raise DelegationError("grant parent must belong to the grantor")
+                if not grant.capability.is_descendant_of(parent.capability):
+                    raise DelegationError("grant capability exceeds parent authority")
+                if grant.depth > parent.depth - 1:
+                    raise DelegationError("grant depth exceeds parent remaining depth")
+        for grant in graph._grants.values():
+            if not graph._valid_grant(grant, float("-inf")):
+                raise DelegationError("grant chain is not rooted in intrinsic authority")
+        graph._revoked = revoked_ids
         if next_id <= 0:
             raise DelegationError("next grant id must be positive")
+        generated_ids = [
+            int(grant.id[2:])
+            for grant in graph._grants.values()
+            if grant.id.startswith("G-") and grant.id[2:].isdigit()
+        ]
+        if generated_ids and next_id <= max(generated_ids):
+            raise DelegationError("next grant id would collide with a restored grant")
         graph._next_id = next_id
         return graph

@@ -45,6 +45,13 @@ Credentials are passed to the configured `IdentityVerifier` and are never
 returned in service responses or audit records. When identity verification is
 configured, missing, expired, mismatched, or forged credentials fail closed.
 
+The actor attributes in the request are an identifier envelope only. When an
+identity verifier is configured, `GovernanceService` requires a trusted actor
+registry and derives authority level, class, and intrinsic capabilities from
+that registry. Caller-supplied values cannot elevate the actor. The
+`prior_approvals` field is not accepted from callers; approval state is created,
+voted, and consumed only through the approval lifecycle.
+
 ## Endpoints
 
 | Method | Endpoint | Purpose |

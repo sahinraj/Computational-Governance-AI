@@ -202,6 +202,32 @@ def test_verified_identity_binds_delegation_proofs_and_approval_roles():
             ),
             now=10,
         )
+
+    class ForgedIdentity(VerifiedIdentity):
+        @property
+        def is_provider_verified(self):
+            return True
+
+    forged_subclass = ForgedIdentity(
+        trust_domain=TRUST_DOMAIN,
+        subject="attacker",
+        roles=("ReleaseManager",),
+        expires_at=40,
+        issuer="fixture-issuer",
+        credential_reference="forged-subclass",
+        issued_at=0,
+    )
+    with pytest.raises(ApprovalError, match="provider-verified"):
+        manager.approve(
+            request.id,
+            "ReleaseManager",
+            policy,
+            action,
+            context,
+            delegation=graph,
+            identity=forged_subclass,
+            now=10,
+        )
     approved = manager.approve(
         request.id,
         "ReleaseManager",

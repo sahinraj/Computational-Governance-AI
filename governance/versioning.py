@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import re
 from dataclasses import dataclass
 from typing import Any, Iterable, Optional
@@ -21,7 +22,16 @@ class VersioningError(ValueError):
 
 
 def _canonical(value: Any) -> str:
-    return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+    try:
+        return json.dumps(
+            value,
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=True,
+            allow_nan=False,
+        )
+    except (TypeError, ValueError) as exc:
+        raise VersioningError("policy bundle contains non-portable JSON values") from exc
 
 
 def _hash(value: Any) -> str:
@@ -78,8 +88,12 @@ def _validate_provenance(provenance: dict[str, Any]) -> dict[str, Any]:
         raise VersioningError("policy provenance must be an object")
     normalized = {}
     for key, value in provenance.items():
-        if not isinstance(key, str) or not isinstance(value, (str, int, float, bool)) and value is not None:
+        if not isinstance(key, str):
+            raise VersioningError("policy provenance keys must be strings")
+        if value is not None and not isinstance(value, (str, int, float, bool)):
             raise VersioningError("policy provenance values must be scalar")
+        if isinstance(value, float) and not math.isfinite(value):
+            raise VersioningError("policy provenance values must be finite")
         normalized[key] = value
     return dict(sorted(normalized.items()))
 
@@ -135,11 +149,20 @@ class PolicyBundle:
             roles=role_set,
             default_decision=default_decision,
         )
+        semantics = policy_semantics(policy)
+        if role_set is None:
+            referenced_roles = set(policy.roles)
+            for rule in policy.rules:
+                if rule.requires_approval:
+                    referenced_roles.add(rule.requires_approval)
+                if rule.approval_requirement is not None:
+                    referenced_roles.update(rule.approval_requirement.roles)
+            semantics["roles"] = sorted(referenced_roles)
         return cls(
             policy_id=policy_id,
             policy_version=policy_version,
             source=source,
-            semantics=policy_semantics(policy),
+            semantics=semantics,
             provenance=_validate_provenance(provenance or {}),
         )
 
@@ -201,15 +224,22 @@ class PolicyBundle:
         missing = sorted(required - set(value))
         if missing:
             raise VersioningError(f"policy bundle missing fields: {missing}")
+        for field in ("bundle_version", "policy_id", "policy_version", "content_hash", "source"):
+            if not isinstance(value[field], str):
+                raise VersioningError(f"policy bundle field {field} must be a string")
+        if not isinstance(value["semantics"], dict):
+            raise VersioningError("policy bundle semantics must be an object")
+        if not isinstance(value["provenance"], dict):
+            raise VersioningError("policy bundle provenance must be an object")
         bundle = cls(
-            policy_id=str(value["policy_id"]),
-            policy_version=str(value["policy_version"]),
-            source=str(value["source"]),
+            policy_id=value["policy_id"],
+            policy_version=value["policy_version"],
+            source=value["source"],
             semantics=value["semantics"],
             provenance=value["provenance"],
-            bundle_version=str(value["bundle_version"]),
+            bundle_version=value["bundle_version"],
         )
-        if str(value["content_hash"]) != bundle.content_hash:
+        if value["content_hash"] != bundle.content_hash:
             raise VersioningError("policy bundle content hash mismatch")
         bundle.compile()
         return bundle
