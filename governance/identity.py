@@ -83,6 +83,15 @@ class VerifiedIdentity:
         """Whether this object was produced by the in-process verifier path."""
         return self._verification_token is _PROVIDER_VERIFIED_TOKEN
 
+    @classmethod
+    def _is_verified_artifact(cls, value: Any) -> bool:
+        """Check provenance without dispatching through a caller override."""
+        return (
+            type(value) is cls
+            and object.__getattribute__(value, "_verification_token")
+            is _PROVIDER_VERIFIED_TOKEN
+        )
+
     def __post_init__(self) -> None:
         for field_name in (
             "trust_domain",

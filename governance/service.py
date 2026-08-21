@@ -9,9 +9,10 @@ approval continuation; policy evaluation remains in the existing engine.
 from __future__ import annotations
 
 import json
+import copy
 import threading
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any, Callable, Mapping, Optional, Protocol
@@ -102,6 +103,11 @@ class DecisionRequest:
             not isinstance(role, str) or not role for role in prior
         ):
             raise ServiceError("invalid_request", "prior_approvals must be role names")
+        if prior:
+            raise ServiceError(
+                "invalid_request",
+                "prior_approvals are server-managed and cannot be supplied by callers",
+            )
         try:
             budget_used = float(value.get("budget_used", 0.0))
         except (TypeError, ValueError) as exc:
@@ -109,7 +115,7 @@ class DecisionRequest:
         return cls(
             actor=actor,
             capability=capability,
-            params=dict(params),
+            params=copy.deepcopy(dict(params)),
             idempotency_key=key,
             credential=None if credential is None else dict(credential),
             budget_used=budget_used,
@@ -125,7 +131,7 @@ class DecisionRequest:
                 "capabilities": sorted(self.actor.capabilities),
             },
             "capability": self.capability,
-            "params": dict(self.params),
+            "params": copy.deepcopy(dict(self.params)),
             "idempotency_key": self.idempotency_key,
             "budget_used": self.budget_used,
             "prior_approvals": list(self.prior_approvals),
@@ -138,7 +144,7 @@ class DecisionRequest:
         return ToolCall(
             actor=self.actor,
             capability=self.capability,
-            params=self.params,
+            params=copy.deepcopy(dict(self.params)),
             request_id=self.idempotency_key,
             credential=self.credential,
         )
@@ -161,6 +167,7 @@ class GovernanceService:
         *,
         handlers: Mapping[str, Callable[[Mapping[str, Any]], Any]],
         approval_manager: Optional[ApprovalManager] = None,
+        actor_registry: Optional[Mapping[str, Actor]] = None,
         clock: Callable[[], float] = time.time,
     ):
         if runtime.interceptor.mode is not InterceptorMode.ENFORCE:
@@ -175,6 +182,20 @@ class GovernanceService:
             )
         self.runtime = runtime
         self.handlers = dict(handlers)
+        if runtime.identity_verifier is not None and actor_registry is None:
+            raise ServiceError(
+                "invalid_configuration",
+                "authenticated service requires a trusted actor registry",
+            )
+        if actor_registry is not None and any(
+            not isinstance(actor_id, str) or not actor_id or not isinstance(actor, Actor)
+            for actor_id, actor in actor_registry.items()
+        ):
+            raise ServiceError(
+                "invalid_configuration",
+                "actor registry must map non-empty ids to Actor records",
+            )
+        self.actor_registry = None if actor_registry is None else dict(actor_registry)
         self.approval_manager = approval_manager or runtime.interceptor.approval_manager
         self.clock = clock
         self._lock = threading.RLock()
@@ -273,8 +294,21 @@ class GovernanceService:
         except IdentityError as exc:
             raise ServiceError("authentication_failed", str(exc), HTTPStatus.UNAUTHORIZED) from exc
 
+    def _trusted_request(self, request: DecisionRequest) -> DecisionRequest:
+        """Replace caller-asserted policy attributes with trusted actor state."""
+        if self.actor_registry is None:
+            return request
+        actor = self.actor_registry.get(request.actor.id)
+        if actor is None:
+            raise ServiceError(
+                "unknown_actor",
+                "actor is not registered in trusted service state",
+                HTTPStatus.FORBIDDEN,
+            )
+        return replace(request, actor=actor)
+
     def _decision(self, value: Mapping[str, Any]) -> ServiceResponse:
-        request = DecisionRequest.from_dict(value)
+        request = self._trusted_request(DecisionRequest.from_dict(value))
         request_value = request.to_dict()
         cached = self._idempotent(request.idempotency_key, request_value)
         if cached is not None:
@@ -289,7 +323,7 @@ class GovernanceService:
         now = float(self.clock())
         context = Context(
             budget_used=request.budget_used,
-            prior_approvals=request.prior_approvals,
+            prior_approvals=(),
             now=now,
         )
         identity = None
@@ -309,7 +343,7 @@ class GovernanceService:
             result = self.runtime.invoke(
                 request.tool_call(),
                 context,
-                lambda: handler(dict(request.params)),
+                lambda: handler(copy.deepcopy(dict(request.params))),
             )
             response = self._result_response(request.idempotency_key, result)
         except ServiceError as exc:
@@ -459,7 +493,7 @@ class GovernanceService:
                 request_id,
                 pending.action,
                 pending.context,
-                lambda: pending.handler(dict(pending.request.params)),
+                lambda: pending.handler(copy.deepcopy(dict(pending.request.params))),
                 now=float(self.clock()),
             )
             response = self._result_response(key, result)

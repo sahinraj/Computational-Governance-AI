@@ -135,7 +135,11 @@ class ApprovalManager:
         if request is None:
             raise ApprovalError(f"unknown approval request {request_id}")
         current = request.created_at if now is None else float(now)
-        if request.state is ApprovalState.PENDING and current >= request.expires_at:
+        if (
+            not request.consumed
+            and request.state in (ApprovalState.PENDING, ApprovalState.APPROVED)
+            and current >= request.expires_at
+        ):
             request.state = ApprovalState.EXPIRED
         return request
 
@@ -172,7 +176,7 @@ class ApprovalManager:
 
     @staticmethod
     def _validate_identity(identity: Any, role: str, current: float) -> str:
-        if not isinstance(identity, VerifiedIdentity) or not identity.is_provider_verified:
+        if not VerifiedIdentity._is_verified_artifact(identity):
             raise ApprovalError("approver identity must be provider-verified")
         if not identity.is_valid_at(current):
             raise ApprovalError("authenticated approver identity is expired")
@@ -334,6 +338,10 @@ class ApprovalManager:
                 or not set(request.votes).issubset(request.required_roles)
             ):
                 raise ApprovalError("invalid approval quorum snapshot values")
+            if request.state is ApprovalState.APPROVED and len(request.votes) < request.threshold:
+                raise ApprovalError("approved requests must satisfy their approval threshold")
+            if request.state is ApprovalState.PENDING and len(request.votes) >= request.threshold:
+                raise ApprovalError("pending requests cannot satisfy their approval threshold")
             if request.consumed and request.state is not ApprovalState.APPROVED:
                 raise ApprovalError("only approved requests can be consumed")
             if len({role for role, _ in request.vote_identity_references}) != len(

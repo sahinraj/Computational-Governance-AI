@@ -101,6 +101,10 @@ def delegation_snapshot(delegation) -> Optional[dict[str, Any]]:
             value["identity_reference"] = grant.identity_reference
         grants.append(value)
     return {
+        "intrinsic": {
+            actor: sorted(capabilities)
+            for actor, capabilities in sorted(delegation._intrinsic.items())
+        },
         "grants": grants,
         "revoked": list(delegation.revoked_grants()),
     }

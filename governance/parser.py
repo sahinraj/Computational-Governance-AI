@@ -171,9 +171,11 @@ def parse_laws(source: str) -> list[Rule]:
         elif key == "forbidden_classes":
             current["forbidden_classes"] = [c.strip() for c in value.split(",") if c.strip()]
         elif key == "requires_approval":
+            if "approval_requirement" in current:
+                raise ParseError(i, "requires_approval and approval_policy are mutually exclusive")
             current["requires_approval"] = value
         elif key == "approval_policy":
-            if "requires_approval" in current:
+            if "requires_approval" in current or "approval_requirement" in current:
                 raise ParseError(i, "requires_approval and approval_policy are mutually exclusive")
             current["approval_requirement"] = _parse_approval_policy(value, i)
         elif key == "on_violation":

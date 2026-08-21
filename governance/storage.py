@@ -129,6 +129,7 @@ class DurableIdempotencyRecord:
     status: str
     response_status: Optional[int] = None
     response: Optional[dict[str, Any]] = None
+    acquired: bool = False
 
 
 @dataclass(frozen=True)
@@ -138,6 +139,7 @@ class ExecutionClaim:
     claim_id: str
     status: str
     outcome: Optional[dict[str, Any]] = None
+    acquired: bool = False
 
 
 class Repository(Protocol):
@@ -288,7 +290,9 @@ class SQLiteGovernanceStore:
         if not isinstance(payload, Mapping):
             raise StoreError("durable payload must be an object")
         try:
-            return json.dumps(payload, sort_keys=True, separators=(",", ":"))
+            return json.dumps(
+                payload, sort_keys=True, separators=(",", ":"), allow_nan=False
+            )
         except (TypeError, ValueError) as exc:
             raise StoreError(f"durable payload is not JSON-compatible: {exc}") from exc
 
@@ -503,14 +507,17 @@ class SQLiteGovernanceStore:
                     raise ConcurrencyError(f"idempotency key conflict {scope}/{key}")
                 response = None if row["response_json"] is None else json.loads(row["response_json"])
                 return DurableIdempotencyRecord(
-                    scope, key, request_hash, row["status"], row["response_status"], response
+                    scope, key, request_hash, row["status"], row["response_status"], response,
+                    acquired=False,
                 )
             connection.execute(
                 "INSERT INTO idempotency_records "
                 "(scope,key,request_hash,status,created_at) VALUES (?,?,?,?,strftime('%s','now'))",
                 (scope, key, request_hash, "in_progress"),
             )
-            return DurableIdempotencyRecord(scope, key, request_hash, "in_progress")
+            return DurableIdempotencyRecord(
+                scope, key, request_hash, "in_progress", acquired=True
+            )
 
         return self._transaction(operation)
 
@@ -527,20 +534,37 @@ class SQLiteGovernanceStore:
 
         def operation(connection: sqlite3.Connection) -> DurableIdempotencyRecord:
             row = connection.execute(
-                "SELECT request_hash,status FROM idempotency_records WHERE scope=? AND key=?",
+                "SELECT request_hash,status,response_status,response_json "
+                "FROM idempotency_records WHERE scope=? AND key=?",
                 (scope, key),
             ).fetchone()
             if row is None:
                 raise StoreError(f"unknown idempotency key {scope}/{key}")
             if row["request_hash"] != request_hash:
                 raise ConcurrencyError(f"idempotency key conflict {scope}/{key}")
+            existing_response = (
+                None if row["response_json"] is None else json.loads(row["response_json"])
+            )
+            if row["status"] == "complete":
+                if (
+                    row["response_status"] != int(response_status)
+                    or existing_response != dict(response)
+                ):
+                    raise ConcurrencyError(
+                        f"completed idempotency result conflict {scope}/{key}"
+                    )
+                return DurableIdempotencyRecord(
+                    scope, key, request_hash, "complete", row["response_status"],
+                    existing_response, acquired=False,
+                )
             connection.execute(
                 "UPDATE idempotency_records SET status='complete',response_status=?, "
                 "response_json=?,completed_at=strftime('%s','now') WHERE scope=? AND key=?",
                 (int(response_status), encoded, scope, key),
             )
             return DurableIdempotencyRecord(
-                scope, key, request_hash, "complete", int(response_status), dict(response)
+                scope, key, request_hash, "complete", int(response_status), dict(response),
+                acquired=False,
             )
 
         return self._transaction(operation)
@@ -556,7 +580,8 @@ class SQLiteGovernanceStore:
             raise StoreError(f"unknown idempotency key {scope}/{key}")
         response = None if row["response_json"] is None else json.loads(row["response_json"])
         return DurableIdempotencyRecord(
-            scope, key, row["request_hash"], row["status"], row["response_status"], response
+            scope, key, row["request_hash"], row["status"], row["response_status"], response,
+            acquired=False,
         )
 
     def claim_execution(self, scope: str, key: str, claim_id: str) -> ExecutionClaim:
@@ -572,13 +597,13 @@ class SQLiteGovernanceStore:
                 if row["claim_id"] != claim_id:
                     raise ConcurrencyError(f"execution claim already exists {scope}/{key}")
                 outcome = None if row["outcome_json"] is None else json.loads(row["outcome_json"])
-                return ExecutionClaim(scope, key, claim_id, row["status"], outcome)
+                return ExecutionClaim(scope, key, claim_id, row["status"], outcome, acquired=False)
             connection.execute(
                 "INSERT INTO execution_claims(scope,key,claim_id,status,created_at) "
                 "VALUES (?,?,?,?,strftime('%s','now'))",
                 (scope, key, claim_id, "claimed"),
             )
-            return ExecutionClaim(scope, key, claim_id, "claimed")
+            return ExecutionClaim(scope, key, claim_id, "claimed", acquired=True)
 
         return self._transaction(operation)
 
@@ -597,11 +622,25 @@ class SQLiteGovernanceStore:
 
         def operation(connection: sqlite3.Connection) -> ExecutionClaim:
             row = connection.execute(
-                "SELECT claim_id,status FROM execution_claims WHERE scope=? AND key=?",
+                "SELECT claim_id,status,outcome_json FROM execution_claims "
+                "WHERE scope=? AND key=?",
                 (scope, key),
             ).fetchone()
             if row is None or row["claim_id"] != claim_id:
                 raise ConcurrencyError(f"unknown or stale execution claim {scope}/{key}")
+            existing_outcome = (
+                None if row["outcome_json"] is None else json.loads(row["outcome_json"])
+            )
+            if row["status"] != "claimed":
+                if row["status"] != status or existing_outcome != (
+                    None if outcome is None else dict(outcome)
+                ):
+                    raise ConcurrencyError(
+                        f"completed execution result conflict {scope}/{key}"
+                    )
+                return ExecutionClaim(
+                    scope, key, claim_id, row["status"], existing_outcome, acquired=False
+                )
             connection.execute(
                 "UPDATE execution_claims SET status=?,outcome_json=?,completed_at="
                 "strftime('%s','now') WHERE scope=? AND key=? AND claim_id=?",
@@ -609,7 +648,7 @@ class SQLiteGovernanceStore:
             )
             return ExecutionClaim(
                 scope, key, claim_id, status,
-                None if outcome is None else dict(outcome),
+                None if outcome is None else dict(outcome), acquired=False,
             )
 
         return self._transaction(operation)

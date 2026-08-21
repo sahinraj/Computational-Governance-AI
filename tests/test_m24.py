@@ -81,6 +81,13 @@ def _service(calls, *, clock=None):
         GovernanceService(
             runtime,
             approval_manager=manager,
+            actor_registry={
+                "agent-1": Actor(
+                    "agent-1",
+                    5,
+                    capabilities={"payment.send", "deploy.production"},
+                ),
+            },
             handlers={
                 "payment.send": lambda params: calls.append(("payment.send", dict(params))) or "sent",
                 "deploy.production": lambda params: calls.append(("deploy.production", dict(params))) or "deployed",
@@ -246,6 +253,69 @@ def test_operation_failure_is_cached_for_safe_uncertain_retry():
         client.decide(request)
     assert first.value.code == second.value.code == "operation_failed"
     assert calls == [{"amount": 10}]
+
+
+def test_service_uses_trusted_actor_state_and_rejects_caller_approvals():
+    calls = []
+    service, provider = _service(calls)
+    payload = _payment_request(provider, "trusted-actor").to_dict()
+    payload["actor"]["authority_level"] = 999
+    payload["actor"]["capabilities"] = ["root.admin"]
+    payload["prior_approvals"] = ["ReleaseManager"]
+    rejected = service.handle("POST", "/v1/decisions", payload)
+    assert rejected.status == 400
+    assert rejected.body["error"]["code"] == "invalid_request"
+    assert calls == []
+
+
+def test_service_does_not_accept_spoofed_authority_attributes():
+    provider = _provider()
+    policy = compile_policy(
+        "LAW-STRICT\n"
+        "  capability: payment.send\n"
+        "  authority_level: >= 6\n"
+    )
+    calls = []
+    runtime = RuntimeAdapter(
+        Interceptor(policy, mode=InterceptorMode.ENFORCE),
+        identity_verifier=_verifier(provider),
+    )
+    service = GovernanceService(
+        runtime,
+        actor_registry={"agent-1": Actor("agent-1", 1)},
+        handlers={"payment.send": lambda params: calls.append(params)},
+        clock=lambda: 100.0,
+    )
+    payload = _payment_request(provider, "spoofed-authority").to_dict()
+    payload["actor"]["authority_level"] = 99
+    response = service.handle("POST", "/v1/decisions", payload)
+    assert response.status == 200
+    assert response.body["decision"]["kind"] == "Block"
+    assert calls == []
+
+
+def test_nested_handler_mutation_does_not_change_idempotency_fingerprint():
+    calls = []
+    service, provider = _service(calls)
+
+    def mutating_handler(params):
+        calls.append(params)
+        params["nested"]["items"].append("normalized")
+        return {"count": len(params["nested"]["items"])}
+
+    service.handlers["payment.send"] = mutating_handler
+    client = GovernanceClient(InProcessTransport(service))
+    request = DecisionRequest(
+        actor=Actor("agent-1", 5),
+        capability="payment.send",
+        params={"amount": 10, "nested": {"items": []}},
+        idempotency_key="nested-1",
+        credential=_credential(provider),
+    )
+    first = client.decide(request)
+    second = client.decide(request)
+    assert second == first
+    assert len(calls) == 1
 
 
 def test_http_transport_round_trips_the_same_contract():

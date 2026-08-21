@@ -234,5 +234,7 @@ latency, auditability, and operator-acceptance targets.
 
 ## Immediate next action
 
-Begin M25 with repository interfaces and a single-region transactional backend;
-preserve the M24 in-memory service adapter while durable recovery is added.
+Begin M26 with decision telemetry and redacted end-to-end correlation. In
+parallel, wire the M24 service's pending approvals, idempotency records, and
+execution claims to the M25 repository boundary before the production-kernel
+gate; this integration is tracked as the next Phase 4 follow-up.
