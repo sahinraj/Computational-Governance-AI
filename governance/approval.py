@@ -42,6 +42,7 @@ class ApprovalRequest:
     consumed: bool = False
     identity_reference: Optional[str] = None
     vote_identity_references: tuple[tuple[str, str], ...] = ()
+    denial_identity_reference: Optional[str] = None
 
     def to_dict(self) -> dict:
         value = {
@@ -66,6 +67,8 @@ class ApprovalRequest:
             value["vote_identity_references"] = {
                 role: reference for role, reference in self.vote_identity_references
             }
+        if self.denial_identity_reference is not None:
+            value["denial_identity_reference"] = self.denial_identity_reference
         return value
 
 
@@ -167,6 +170,17 @@ class ApprovalManager:
             return f"approval request {request.id} requires role {request.required_roles[0]}"
         return f"approval request {request.id} requires one of {request.required_roles}"
 
+    @staticmethod
+    def _validate_identity(identity: Any, role: str, current: float) -> str:
+        if not isinstance(identity, VerifiedIdentity) or not identity.is_provider_verified:
+            raise ApprovalError("approver identity must be provider-verified")
+        if not identity.is_valid_at(current):
+            raise ApprovalError("authenticated approver identity is expired")
+        identity_reference = identity.identity_reference
+        if role not in identity.roles or not identity_reference:
+            raise ApprovalError(f"authenticated identity is not authorized for role {role}")
+        return identity_reference
+
     def approve(
         self,
         request_id: str,
@@ -190,17 +204,8 @@ class ApprovalManager:
             raise ApprovalError("authenticated approver identity is required")
         identity_reference = None
         if identity is not None:
-            if not isinstance(identity, VerifiedIdentity):
-                raise ApprovalError("approver identity must be provider-verified")
             current = request.created_at if now is None else float(now)
-            if not identity.is_valid_at(current):
-                raise ApprovalError("authenticated approver identity is expired")
-            roles = tuple(getattr(identity, "roles", ()))
-            identity_reference = getattr(identity, "identity_reference", None)
-            if role not in roles or not identity_reference:
-                raise ApprovalError(
-                    f"authenticated identity is not authorized for role {role}"
-                )
+            identity_reference = self._validate_identity(identity, role, current)
         self._check_binding(request, policy, action, context, delegation)
         request.votes = request.votes + (role,)
         if identity_reference is not None:
@@ -217,12 +222,20 @@ class ApprovalManager:
         role: str,
         *,
         now: Optional[float] = None,
+        identity: Any = None,
     ) -> ApprovalRequest:
         request = self._get(request_id, now)
         if request.state is not ApprovalState.PENDING:
             raise ApprovalError(f"approval request {request.id} is {request.state.value}")
         if role not in request.required_roles:
             raise ApprovalError(self._role_error(request))
+        if self.require_identity and identity is None:
+            raise ApprovalError("authenticated approver identity is required")
+        if identity is not None:
+            current = request.created_at if now is None else float(now)
+            request.denial_identity_reference = self._validate_identity(
+                identity, role, current
+            )
         request.state = ApprovalState.DENIED
         return request
 
@@ -304,6 +317,7 @@ class ApprovalManager:
                         (str(role), str(reference))
                         for role, reference in item.get("vote_identity_references", {}).items()
                     ),
+                    denial_identity_reference=item.get("denial_identity_reference"),
                 )
             except (KeyError, TypeError, ValueError) as exc:
                 raise ApprovalError("invalid approval request snapshot fields") from exc
@@ -326,6 +340,8 @@ class ApprovalManager:
                 request.vote_identity_references
             ) or any(role not in request.votes for role, _ in request.vote_identity_references):
                 raise ApprovalError("invalid approval identity vote references")
+            if request.denial_identity_reference is not None and request.state is not ApprovalState.DENIED:
+                raise ApprovalError("invalid approval denial identity reference")
             manager._requests[request.id] = request
         manager._next_id = next_id
         return manager

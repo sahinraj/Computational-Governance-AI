@@ -184,7 +184,7 @@ def test_verified_identity_binds_delegation_proofs_and_approval_roles():
     manager = ApprovalManager(require_identity=True)
     request = manager.request(decision, policy, action, context, delegation=graph, now=10)
     assert request.identity_reference == identity.identity_reference
-    with pytest.raises(ApprovalError, match="authenticated identity"):
+    with pytest.raises(ApprovalError, match="provider-verified"):
         manager.approve(
             request.id,
             "ReleaseManager",
@@ -221,6 +221,82 @@ def test_verified_identity_binds_delegation_proofs_and_approval_roles():
     assert restored.require_identity is True
     assert restored_request.identity_reference == identity.identity_reference
     assert restored_request.vote_identity_references == approved.vote_identity_references
+
+
+def test_approval_rejects_forged_identity_and_requires_authenticated_denial():
+    provider = _provider()
+    verifier = _verifier(provider)
+    identity = verifier.verify(_credential(provider), actor_id="agent-1", now=10)
+    policy = compile_policy(
+        "LAW-APPROVAL\n"
+        "  capability: payment.send\n"
+        "  requires_approval: ReleaseManager\n"
+        "  on_violation: escalate\n",
+        roles={"ReleaseManager"},
+    )
+    action = Action(
+        Actor("agent-1", 5),
+        Capability("payment.send"),
+        identity_reference=identity.identity_reference,
+        identity_roles=identity.roles,
+    )
+    context = Context(now=10)
+    graph = DelegationGraph(intrinsic={"agent-1": {"payment.send"}})
+    decision = policy.evaluate(action, context, delegation=graph)
+
+    forged = VerifiedIdentity(
+        trust_domain=TRUST_DOMAIN,
+        subject="attacker",
+        roles=("ReleaseManager",),
+        expires_at=40,
+        issuer="fixture-issuer",
+        credential_reference="forged",
+        issued_at=0,
+    )
+    manager = ApprovalManager(require_identity=True)
+    request = manager.request(decision, policy, action, context, delegation=graph, now=10)
+    with pytest.raises(ApprovalError, match="provider-verified"):
+        manager.approve(
+            request.id,
+            "ReleaseManager",
+            policy,
+            action,
+            context,
+            delegation=graph,
+            identity=forged,
+            now=10,
+        )
+    with pytest.raises(ApprovalError, match="authenticated approver identity is required"):
+        manager.deny(request.id, "ReleaseManager", now=10)
+    wrong_role_identity = IdentityVerifier(
+        provider,
+        trust_domain=TRUST_DOMAIN,
+        role_mapping={"release-operator": "OtherRole"},
+    ).verify(
+        provider.issue(
+            "agent-2", ["release-operator"], now=10, ttl=30, key_id="key-v1"
+        ),
+        actor_id="agent-2",
+        now=10,
+    )
+    with pytest.raises(ApprovalError, match="authorized for role"):
+        manager.deny(
+            request.id,
+            "ReleaseManager",
+            identity=wrong_role_identity,
+            now=10,
+        )
+
+    denied = manager.deny(
+        request.id,
+        "ReleaseManager",
+        identity=identity,
+        now=10,
+    )
+    assert denied.state.value == "denied"
+    assert denied.denial_identity_reference == identity.identity_reference
+    restored = ApprovalManager.from_snapshot(manager.snapshot())
+    assert restored.get(request.id, now=10).denial_identity_reference == identity.identity_reference
 
 
 def test_identity_rotation_and_audit_restart_preserve_historical_binding(tmp_path):
