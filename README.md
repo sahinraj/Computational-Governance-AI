@@ -4,8 +4,8 @@
 
 A formal model, a reference implementation, and a runtime-agnostic benchmark for deciding whether an autonomous agent's intended action is permitted **before it executes** — accounting for delegated authority, human escalation, revocation, and runtime context change.
 
-The theory is frozen at **Foundations v1**. The reference implementation and
-The v0.3 reference release completes milestones M1–M21. GovernanceBench v0.2
+The theory is frozen at **Foundations v1**. The reference implementation's
+v0.3 release completes milestones M1–M21. GovernanceBench v0.2
 remains hand-authored so its labels remain auditable. Phase 3 adds
 implementation-independent conformance, durable recovery, model-based
 assurance, quorum approvals, and a focused CLI while preserving the frozen
@@ -71,6 +71,7 @@ docs/              GitHub Pages site
 | M21 | v0.3 end-to-end integration release | ✅ |
 | M22 | Stable policy and protocol versioning | ✅ |
 | M23 | Authenticated workload and actor identity | ✅ |
+| M24 | Versioned service API and Python SDK | 🚧 |
 
 ## Quickstart
 
@@ -130,8 +131,9 @@ remains weaker on the dynamic categories. Generated JSON artifacts live in
 For integrations, `governance.RuntimeAdapter` is the single pre-execution
 entry point for typed `ToolCall` envelopes. Enforce mode invokes the supplied
 operation only after `Allow`, fails closed on governance errors, and rejects a
-completed request id a second time. See [`SECURITY.md`](SECURITY.md) and the
-M16 release notes for integration boundaries.
+completed request id a second time. The M24 service boundary and SDK are
+documented in [`docs/service-api.md`](docs/service-api.md). See
+[`SECURITY.md`](SECURITY.md) for integration boundaries.
 
 Phase 3 persistence is intentionally narrow: `AtomicJsonStore` saves versioned
 governance snapshots with same-directory replacement and `JsonlAuditStore`

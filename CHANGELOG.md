@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- Hardened secure approval workflows so caller-constructed identities cannot
+  approve actions; authenticated denials now retain identity provenance.
+- Added the M24 versioned HTTP/JSON service boundary, process-local
+  idempotency, authenticated approval continuation, a transport-independent
+  Python SDK, local HTTP runner, contract tests, and service API guidance.
+
 ## 0.3.0 — 2026-08-09
 
 - Added versioned, implementation-independent conformance envelopes and a

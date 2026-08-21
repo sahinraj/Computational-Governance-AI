@@ -207,6 +207,8 @@ class Interceptor:
         action: Action,
         context: Context,
         operation: Callable[[], object],
+        *,
+        now: Optional[float] = None,
     ) -> InterceptionResult:
         """Resume one approved request after rechecking its exact state."""
         if self.mode is InterceptorMode.SHADOW:
@@ -215,7 +217,8 @@ class Interceptor:
             raise ApprovalError("no approval manager is configured")
 
         current = self._evaluate(action, context)
-        request = self.approval_manager.get(request_id, now=context.now)
+        approval_now = context.now if now is None else float(now)
+        request = self.approval_manager.get(request_id, now=approval_now)
         if current.kind is not DecisionKind.ESCALATE or current.role != request.role:
             decision = Decision(
                 DecisionKind.BLOCK,
@@ -238,7 +241,7 @@ class Interceptor:
                 action,
                 context,
                 delegation=self.delegation,
-                now=context.now,
+                now=approval_now,
             )
         except ApprovalError as exc:
             decision = Decision(

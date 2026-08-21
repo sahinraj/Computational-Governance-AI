@@ -2,7 +2,7 @@
 
 **Project:** Computational Governance for Autonomous Systems
 **Current release:** v0.3.0
-**Current state:** Phase 3 complete; M22–M23 complete; Phase 4 in progress
+**Current state:** Phase 3 complete; M22–M24 complete; Phase 4 in progress
 **Roadmap date:** 2026-08-14
 
 ## North-star direction
@@ -37,9 +37,9 @@ Completed capabilities:
 - Runtime-agnostic GovernanceBench: 30 scenarios and 39 trace steps
 - Python CLI, CI matrix, CodeQL, protected `main`, and GitHub Pages
 
-The project is not yet production-ready. The main gaps are authenticated
-identity, a service boundary, production persistence, observability, policy
-lifecycle controls, independent security evidence, and a real-world pilot.
+The project is not yet production-ready. The remaining gaps are transactional
+production persistence, observability, policy lifecycle controls, independent
+security evidence, and a real-world pilot.
 
 ## Phase 4 — Production Trust Boundary
 
@@ -99,7 +99,9 @@ framework. Keep the core engine usable as a library.
 
 **Acceptance:** the service handles allow, block, escalate, timeout, retry,
 duplicate-request, and approval-resume paths; schemas are versioned; the SDK
-has contract tests; no tool operation runs without an allow decision.
+has contract tests; no tool operation runs without an allow decision. Transport
+timeouts are explicitly retry-safe only when the original idempotency key is
+reused; crash durability remains M25 scope.
 
 ### M25 — Transactional durable storage
 
@@ -228,5 +230,5 @@ latency, auditability, and operator-acceptance targets.
 
 ## Immediate next action
 
-Begin M24 on a dedicated branch with acceptance tests for the service API and
-production SDK boundary.
+Begin M25 with repository interfaces and a single-region transactional backend;
+preserve the M24 in-memory service adapter while durable recovery is added.
