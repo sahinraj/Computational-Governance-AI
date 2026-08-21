@@ -72,7 +72,7 @@ docs/              GitHub Pages site
 | M22 | Stable policy and protocol versioning | ✅ |
 | M23 | Authenticated workload and actor identity | ✅ |
 | M24 | Versioned service API and Python SDK | ✅ |
-| M25 | Transactional durable storage | 🚧 |
+| M25 | Transactional durable storage | ✅ |
 
 ## Quickstart
 
