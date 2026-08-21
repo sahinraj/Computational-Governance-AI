@@ -26,7 +26,19 @@ from .delegation import AuthorityProof, DelegationError, DelegationGraph, Grant
 from .interceptor import (
     ApprovalStub, InterceptionResult, Interceptor, InterceptorMode,
 )
-from .storage import AtomicJsonStore, JsonlAuditStore, StoreError
+from .storage import (
+    AtomicJsonStore,
+    ConcurrencyError,
+    DurableIdempotencyRecord,
+    DurableRecord,
+    ExecutionClaim,
+    JsonlAuditStore,
+    M25_SCHEMA_VERSION,
+    Repository,
+    SQLiteGovernanceStore,
+    StoreError,
+    StoredAuditEvent,
+)
 from .versioning import (
     POLICY_BUNDLE_VERSION,
     PolicyBundle,
@@ -73,7 +85,10 @@ __all__ = [
     "CompiledPolicy", "compile_laws", "compile_policy", "DelegationError",
     "AuthorityProof", "DelegationGraph", "Grant", "ApprovalStub", "InterceptionResult",
     "Interceptor", "InterceptorMode",
-    "AtomicJsonStore", "JsonlAuditStore", "StoreError",
+    "AtomicJsonStore", "JsonlAuditStore", "SQLiteGovernanceStore", "M25_SCHEMA_VERSION",
+    "Repository", "StoreError",
+    "ConcurrencyError", "DurableRecord", "StoredAuditEvent",
+    "DurableIdempotencyRecord", "ExecutionClaim",
     "POLICY_BUNDLE_VERSION", "PolicyBundle", "PolicyVersionEvent",
     "PolicyVersionStore", "VersioningError", "policy_semantics",
     "IdentityError", "IdentityProvider", "IdentityVerifier",

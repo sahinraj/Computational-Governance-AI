@@ -71,7 +71,8 @@ docs/              GitHub Pages site
 | M21 | v0.3 end-to-end integration release | ✅ |
 | M22 | Stable policy and protocol versioning | ✅ |
 | M23 | Authenticated workload and actor identity | ✅ |
-| M24 | Versioned service API and Python SDK | 🚧 |
+| M24 | Versioned service API and Python SDK | ✅ |
+| M25 | Transactional durable storage | 🚧 |
 
 ## Quickstart
 
@@ -133,7 +134,9 @@ entry point for typed `ToolCall` envelopes. Enforce mode invokes the supplied
 operation only after `Allow`, fails closed on governance errors, and rejects a
 completed request id a second time. The M24 service boundary and SDK are
 documented in [`docs/service-api.md`](docs/service-api.md). See
-[`SECURITY.md`](SECURITY.md) for integration boundaries.
+[`SECURITY.md`](SECURITY.md) for integration boundaries. Durable storage modes
+and recovery boundaries are documented in [`docs/storage.md`](docs/storage.md)
+and [`docs/operator-guide.md`](docs/operator-guide.md).
 
 Phase 3 persistence is intentionally narrow: `AtomicJsonStore` saves versioned
 governance snapshots with same-directory replacement and `JsonlAuditStore`

@@ -37,9 +37,10 @@ Completed capabilities:
 - Runtime-agnostic GovernanceBench: 30 scenarios and 39 trace steps
 - Python CLI, CI matrix, CodeQL, protected `main`, and GitHub Pages
 
-The project is not yet production-ready. The remaining gaps are transactional
-production persistence, observability, policy lifecycle controls, independent
-security evidence, and a real-world pilot.
+The project is not yet a general production-ready or highly available control
+plane. The remaining gaps are service integration with durable state,
+observability, policy lifecycle controls, independent security evidence, and a
+real-world pilot.
 
 ## Phase 4 — Production Trust Boundary
 
@@ -107,8 +108,9 @@ reused; crash durability remains M25 scope.
 
 Add a production persistence backend, initially PostgreSQL or an equivalent
 single-region transactional store. Persist policy state, grants, approvals,
-decision events, and sequence numbers with optimistic concurrency, backups,
-retention, encryption, and recovery tests.
+decision events, idempotency records, execution claims, and sequence numbers
+with optimistic concurrency, backups, retention, encryption boundaries, and
+recovery tests.
 
 **Boundary:** Do not build multi-region consensus or distributed deployment yet.
 Prove the single-region consistency model first.
@@ -116,6 +118,8 @@ Prove the single-region consistency model first.
 **Acceptance:** concurrent updates cannot lose or duplicate approvals; crash
 recovery preserves state and audit ordering; backups restore successfully;
 retention and encryption behavior are documented; recovery targets are measured.
+The M25 reference adapter must remain explicit about single-region scope and
+the unresolved external-operation outcome after a process crash.
 
 ### M26 — Observability and decision telemetry
 
