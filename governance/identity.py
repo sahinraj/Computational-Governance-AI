@@ -13,12 +13,15 @@ import hashlib
 import hmac
 import json
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Mapping, Protocol
 
 
 class IdentityError(ValueError):
     """Raised when an identity cannot be authenticated or bound safely."""
+
+
+_PROVIDER_VERIFIED_TOKEN = object()
 
 
 def _canonical(value: Any) -> bytes:
@@ -56,6 +59,29 @@ class VerifiedIdentity:
     issuer: str
     credential_reference: str
     issued_at: float = 0.0
+    _verification_token: object = field(
+        default=None,
+        init=False,
+        repr=False,
+        compare=False,
+    )
+
+    @classmethod
+    def _from_provider(cls, **claims: Any) -> "VerifiedIdentity":
+        """Create an identity artifact that passed the verifier boundary.
+
+        The marker is intentionally not serializable or constructor-settable.
+        Rehydrated audit data and caller-constructed claim objects therefore
+        cannot be submitted as authenticated approval authority.
+        """
+        identity = cls(**claims)
+        object.__setattr__(identity, "_verification_token", _PROVIDER_VERIFIED_TOKEN)
+        return identity
+
+    @property
+    def is_provider_verified(self) -> bool:
+        """Whether this object was produced by the in-process verifier path."""
+        return self._verification_token is _PROVIDER_VERIFIED_TOKEN
 
     def __post_init__(self) -> None:
         for field_name in (
@@ -182,7 +208,7 @@ class IdentityVerifier:
             roles = tuple(sorted({self.role_mapping[role] for role in identity.roles}))
         else:
             roles = identity.roles
-        return VerifiedIdentity(
+        return VerifiedIdentity._from_provider(
             trust_domain=identity.trust_domain,
             subject=identity.subject,
             roles=roles,
