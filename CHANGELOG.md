@@ -7,6 +7,9 @@
 - Added the M24 versioned HTTP/JSON service boundary, process-local
   idempotency, authenticated approval continuation, a transport-independent
   Python SDK, local HTTP runner, contract tests, and service API guidance.
+- Added the M25 SQLite transactional repository with optimistic revisions,
+  durable idempotency and execution claims, monotonic audit sequences,
+  backup/restore, retention, migration schema, and crash/concurrency tests.
 
 ## 0.3.0 — 2026-08-09
 

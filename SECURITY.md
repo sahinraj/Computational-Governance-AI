@@ -27,3 +27,8 @@ mode. Phase 3 also provides local versioned snapshots and append-only audit
 recovery, but those files are not encrypted or replicated; production
 integrations must add access control, key management, remote retention, and
 identity/signature verification where required.
+
+M25's SQLite backend is a single-region reference adapter. Use encrypted
+volumes, managed backups, least-privilege access, and TLS for remote database
+connections; the repository does not implement custom encryption or key
+management. Durable storage failures and schema mismatches must fail closed.
