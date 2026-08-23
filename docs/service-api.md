@@ -37,7 +37,8 @@ to M25.
   "credential": {"provider-specific": "credential"},
   "idempotency_key": "payment-2026-0001",
   "budget_used": 0,
-  "prior_approvals": []
+  "prior_approvals": [],
+  "correlation_id": "workflow-2026-0001"
 }
 ```
 
@@ -51,6 +52,13 @@ registry and derives authority level, class, and intrinsic capabilities from
 that registry. Caller-supplied values cannot elevate the actor. The
 `prior_approvals` field is not accepted from callers; approval state is created,
 voted, and consumed only through the approval lifecycle.
+
+`correlation_id` is optional; when omitted, the service derives a stable value
+from the actor and idempotency key. Successful and error responses include both
+`correlation_id` and `decision_id`. Configure the M26 `TelemetryCollector` to
+capture the same identifiers across decision, approval, execution, replay, and
+recovery events. See [`observability.md`](observability.md) for the schema and
+redaction boundary.
 
 ## Endpoints
 

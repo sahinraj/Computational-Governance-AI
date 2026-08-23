@@ -19,11 +19,22 @@ from typing import Any, Callable, Mapping, Optional, Protocol
 from urllib.parse import urlparse
 
 from .approval import ApprovalError, ApprovalManager, ApprovalRequest
-from .audit import fingerprint
+from .audit import fingerprint, policy_fingerprint
 from .identity import IdentityError, VerifiedIdentity
 from .interceptor import InterceptionResult, InterceptorMode
 from .model import Action, Actor, Context, DecisionKind
 from .runtime import RuntimeAdapter, ToolCall
+from .telemetry import (
+    APPROVAL_EXPIRED,
+    APPROVAL_REQUESTED,
+    APPROVAL_RESUMED,
+    APPROVAL_VOTED,
+    DECISION_EVALUATED,
+    DECISION_REPLAYED,
+    EXECUTION_COMPLETED,
+    RECOVERY_FAILURE,
+    TelemetryCollector,
+)
 
 
 SERVICE_SCHEMA_VERSION = "1.0"
@@ -55,6 +66,7 @@ class DecisionRequest:
     credential: Optional[Mapping[str, Any]] = None
     budget_used: float = 0.0
     prior_approvals: tuple[str, ...] = ()
+    correlation_id: Optional[str] = None
 
     @classmethod
     def from_dict(cls, value: Mapping[str, Any]) -> "DecisionRequest":
@@ -68,6 +80,7 @@ class DecisionRequest:
             "credential",
             "budget_used",
             "prior_approvals",
+            "correlation_id",
         }
         unknown = sorted(set(value) - allowed)
         if unknown:
@@ -108,6 +121,11 @@ class DecisionRequest:
                 "invalid_request",
                 "prior_approvals are server-managed and cannot be supplied by callers",
             )
+        correlation_id = value.get("correlation_id")
+        if correlation_id is not None and (
+            not isinstance(correlation_id, str) or not correlation_id
+        ):
+            raise ServiceError("invalid_request", "correlation_id must be a non-empty string")
         try:
             budget_used = float(value.get("budget_used", 0.0))
         except (TypeError, ValueError) as exc:
@@ -120,6 +138,7 @@ class DecisionRequest:
             credential=None if credential is None else dict(credential),
             budget_used=budget_used,
             prior_approvals=tuple(prior),
+            correlation_id=correlation_id,
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -136,6 +155,8 @@ class DecisionRequest:
             "budget_used": self.budget_used,
             "prior_approvals": list(self.prior_approvals),
         }
+        if self.correlation_id is not None:
+            value["correlation_id"] = self.correlation_id
         if self.credential is not None:
             value["credential"] = dict(self.credential)
         return value
@@ -156,6 +177,8 @@ class _PendingApproval:
     action: Action
     context: Context
     handler: Callable[[Mapping[str, Any]], Any]
+    correlation_id: str
+    decision_id: str
 
 
 class GovernanceService:
@@ -168,6 +191,8 @@ class GovernanceService:
         handlers: Mapping[str, Callable[[Mapping[str, Any]], Any]],
         approval_manager: Optional[ApprovalManager] = None,
         actor_registry: Optional[Mapping[str, Actor]] = None,
+        telemetry: Optional[TelemetryCollector] = None,
+        policy_version: Optional[str] = None,
         clock: Callable[[], float] = time.time,
     ):
         if runtime.interceptor.mode is not InterceptorMode.ENFORCE:
@@ -188,7 +213,10 @@ class GovernanceService:
                 "authenticated service requires a trusted actor registry",
             )
         if actor_registry is not None and any(
-            not isinstance(actor_id, str) or not actor_id or not isinstance(actor, Actor)
+            not isinstance(actor_id, str)
+            or not actor_id
+            or not isinstance(actor, Actor)
+            or actor_id != actor.id
             for actor_id, actor in actor_registry.items()
         ):
             raise ServiceError(
@@ -197,6 +225,8 @@ class GovernanceService:
             )
         self.actor_registry = None if actor_registry is None else dict(actor_registry)
         self.approval_manager = approval_manager or runtime.interceptor.approval_manager
+        self.telemetry = telemetry or TelemetryCollector()
+        self.policy_version = policy_version
         self.clock = clock
         self._lock = threading.RLock()
         self._idempotency: dict[str, tuple[str, ServiceResponse]] = {}
@@ -231,6 +261,9 @@ class GovernanceService:
         cls,
         request_id: str,
         result: InterceptionResult,
+        *,
+        correlation_id: Optional[str] = None,
+        decision_id: Optional[str] = None,
     ) -> ServiceResponse:
         body: dict[str, Any] = {
             "schema_version": SERVICE_SCHEMA_VERSION,
@@ -239,6 +272,10 @@ class GovernanceService:
             "executed": result.executed,
             "approval_request_id": result.approval_request_id,
         }
+        if correlation_id is not None:
+            body["correlation_id"] = correlation_id
+        if decision_id is not None:
+            body["decision_id"] = decision_id
         if result.executed:
             try:
                 json.dumps(result.value)
@@ -250,6 +287,53 @@ class GovernanceService:
                 ) from exc
             body["value"] = result.value
         return ServiceResponse(status=HTTPStatus.OK, body=body)
+
+    @staticmethod
+    def _with_observability_ids(
+        response: ServiceResponse, correlation_id: str, decision_id: str
+    ) -> ServiceResponse:
+        body = dict(response.body)
+        body["correlation_id"] = correlation_id
+        body["decision_id"] = decision_id
+        return ServiceResponse(status=response.status, body=body)
+
+    def _request_ids(
+        self, request: DecisionRequest
+    ) -> tuple[DecisionRequest, dict[str, Any], str, str]:
+        correlation_id = request.correlation_id or (
+            "corr-" + fingerprint({"actor_id": request.actor.id, "key": request.idempotency_key})[:24]
+        )
+        normalized = replace(request, correlation_id=correlation_id)
+        request_value = normalized.to_dict()
+        decision_id = "decision-" + fingerprint(request_value)[:24]
+        return normalized, request_value, correlation_id, decision_id
+
+    def _emit_decision(
+        self,
+        *,
+        event_name: str,
+        correlation_id: str,
+        decision_id: str,
+        identity_reference: Optional[str] = None,
+        approval_reference: Optional[str] = None,
+        outcome: Optional[str] = None,
+        latency_ms: Optional[float] = None,
+        failure_reason: Optional[str] = None,
+        attributes: Optional[Mapping[str, Any]] = None,
+    ) -> None:
+        self.telemetry.emit(
+            event_name,
+            correlation_id=correlation_id,
+            decision_id=decision_id,
+            policy_fingerprint=policy_fingerprint(self.runtime.interceptor.policy),
+            policy_version=self.policy_version,
+            actor_identity_reference=identity_reference,
+            approval_reference=approval_reference,
+            outcome=outcome,
+            latency_ms=latency_ms,
+            failure_reason=failure_reason,
+            attributes=attributes,
+        )
 
     def _idempotent(self, key: str, request_value: Mapping[str, Any]) -> Optional[ServiceResponse]:
         entry = self._idempotency.get(key)
@@ -309,18 +393,38 @@ class GovernanceService:
 
     def _decision(self, value: Mapping[str, Any]) -> ServiceResponse:
         request = self._trusted_request(DecisionRequest.from_dict(value))
-        request_value = request.to_dict()
+        request, request_value, correlation_id, decision_id = self._request_ids(request)
         cached = self._idempotent(request.idempotency_key, request_value)
         if cached is not None:
+            self._emit_decision(
+                event_name=DECISION_REPLAYED,
+                correlation_id=correlation_id,
+                decision_id=decision_id,
+                outcome=cached.body.get("decision", {}).get("kind"),
+                attributes={"request_id": request.idempotency_key},
+            )
             return cached
         handler = self.handlers.get(request.capability)
         if handler is None:
+            response = self._with_observability_ids(
+                self._error(ServiceError("handler_not_found", "no operation handler is registered", HTTPStatus.NOT_FOUND)),
+                correlation_id,
+                decision_id,
+            )
+            self._emit_decision(
+                event_name=DECISION_EVALUATED,
+                correlation_id=correlation_id,
+                decision_id=decision_id,
+                outcome="handler_not_found",
+                failure_reason="handler_not_found",
+            )
             return self._store_idempotent(
                 request.idempotency_key,
                 request_value,
-                self._error(ServiceError("handler_not_found", "no operation handler is registered", HTTPStatus.NOT_FOUND)),
+                response,
             )
         now = float(self.clock())
+        started = time.monotonic()
         context = Context(
             budget_used=request.budget_used,
             prior_approvals=(),
@@ -345,7 +449,12 @@ class GovernanceService:
                 context,
                 lambda: handler(copy.deepcopy(dict(request.params))),
             )
-            response = self._result_response(request.idempotency_key, result)
+            response = self._result_response(
+                request.idempotency_key,
+                result,
+                correlation_id=correlation_id,
+                decision_id=decision_id,
+            )
         except ServiceError as exc:
             response = self._error(exc)
         except Exception:
@@ -379,6 +488,43 @@ class GovernanceService:
                 action=action,
                 context=context,
                 handler=handler,
+                correlation_id=correlation_id,
+                decision_id=decision_id,
+            )
+            self._emit_decision(
+                event_name=APPROVAL_REQUESTED,
+                correlation_id=correlation_id,
+                decision_id=decision_id,
+                identity_reference=None if identity is None else identity.identity_reference,
+                approval_reference=response.body["approval_request_id"],
+                outcome="pending",
+            )
+        response = self._with_observability_ids(response, correlation_id, decision_id)
+        decision = response.body.get("decision", {})
+        error = response.body.get("error", {})
+        self._emit_decision(
+            event_name=DECISION_EVALUATED,
+            correlation_id=correlation_id,
+            decision_id=decision_id,
+            identity_reference=None if identity is None else identity.identity_reference,
+            outcome=decision.get("kind", error.get("code")),
+            latency_ms=(time.monotonic() - started) * 1000,
+            failure_reason=error.get("code"),
+            attributes={
+                "capability": request.capability,
+                "executed": response.body.get("executed", False),
+                "params_fingerprint": fingerprint(request.params),
+            },
+        )
+        if response.body.get("executed") is not None:
+            self._emit_decision(
+                event_name=EXECUTION_COMPLETED,
+                correlation_id=correlation_id,
+                decision_id=decision_id,
+                identity_reference=None if identity is None else identity.identity_reference,
+                outcome="succeeded" if response.body.get("executed") else "not_executed",
+                latency_ms=(time.monotonic() - started) * 1000,
+                failure_reason=error.get("code"),
             )
         return self._store_idempotent(request.idempotency_key, request_value, response)
 
@@ -389,6 +535,15 @@ class GovernanceService:
             request = self.approval_manager.get(request_id, now=float(self.clock()))
         except ApprovalError as exc:
             raise ServiceError("approval_not_found", str(exc), HTTPStatus.NOT_FOUND) from exc
+        if request.state.value == "expired":
+            correlation_id = "corr-" + fingerprint({"approval": request_id})[:24]
+            self._emit_decision(
+                event_name=APPROVAL_EXPIRED,
+                correlation_id=correlation_id,
+                decision_id="decision-" + fingerprint(request_id)[:24],
+                approval_reference=request_id,
+                outcome="expired",
+            )
         return ServiceResponse(
             status=HTTPStatus.OK,
             body={
@@ -457,6 +612,17 @@ class GovernanceService:
                     "approval": approval.to_dict(),
                 },
             )
+        self._emit_decision(
+            event_name=APPROVAL_VOTED,
+            correlation_id=pending.correlation_id,
+            decision_id=pending.decision_id,
+            approval_reference=request_id,
+            identity_reference=identity.identity_reference,
+            outcome=response.body.get("approval", {}).get(
+                "state", response.body.get("error", {}).get("code")
+            ),
+            attributes={"role": role, "vote": decision},
+        )
         return self._store_idempotent(key, request_value, response)
 
     def _resume(self, request_id: str, value: Mapping[str, Any]) -> ServiceResponse:
@@ -496,7 +662,12 @@ class GovernanceService:
                 lambda: pending.handler(copy.deepcopy(dict(pending.request.params))),
                 now=float(self.clock()),
             )
-            response = self._result_response(key, result)
+            response = self._result_response(
+                key,
+                result,
+                correlation_id=pending.correlation_id,
+                decision_id=pending.decision_id,
+            )
         except Exception:
             response = self._error(
                 ServiceError(
@@ -505,7 +676,43 @@ class GovernanceService:
                     HTTPStatus.INTERNAL_SERVER_ERROR,
                 )
             )
+        response = self._with_observability_ids(
+            response, pending.correlation_id, pending.decision_id
+        )
+        self._emit_decision(
+            event_name=APPROVAL_RESUMED,
+            correlation_id=pending.correlation_id,
+            decision_id=pending.decision_id,
+            approval_reference=request_id,
+            identity_reference=identity.identity_reference,
+            outcome=response.body.get("decision", {}).get("kind", response.body.get("error", {}).get("code")),
+        )
+        if response.body.get("executed") is not None:
+            self._emit_decision(
+                event_name=EXECUTION_COMPLETED,
+                correlation_id=pending.correlation_id,
+                decision_id=pending.decision_id,
+                approval_reference=request_id,
+                identity_reference=identity.identity_reference,
+                outcome="succeeded" if response.body.get("executed") else "not_executed",
+            )
         return self._store_idempotent(key, request_value, response)
+
+    def record_recovery_failure(
+        self,
+        *,
+        correlation_id: str,
+        decision_id: str,
+        reason: str,
+    ) -> None:
+        """Record a durable recovery failure without affecting enforcement."""
+        self._emit_decision(
+            event_name=RECOVERY_FAILURE,
+            correlation_id=correlation_id,
+            decision_id=decision_id,
+            outcome="recovery_failed",
+            failure_reason=reason,
+        )
 
     def handle(
         self,

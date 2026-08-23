@@ -20,6 +20,7 @@ from governance import (
     RuntimeAdapter,
     ServiceClientError,
     SignedTestIdentityProvider,
+    TelemetryCollector,
     create_http_server,
     compile_policy,
 )
@@ -55,7 +56,7 @@ def _credential(provider, *, subject="agent-1", now=100.0):
     )
 
 
-def _service(calls, *, clock=None):
+def _service(calls, *, clock=None, telemetry=None):
     provider = _provider()
     verifier = _verifier(provider)
     policy = compile_policy(
@@ -88,6 +89,7 @@ def _service(calls, *, clock=None):
                     capabilities={"payment.send", "deploy.production"},
                 ),
             },
+            telemetry=telemetry,
             handlers={
                 "payment.send": lambda params: calls.append(("payment.send", dict(params))) or "sent",
                 "deploy.production": lambda params: calls.append(("deploy.production", dict(params))) or "deployed",
@@ -186,7 +188,6 @@ def test_approval_vote_and_resume_are_authenticated_and_single_use():
     assert resumed["decision"]["kind"] == "Allow"
     assert resumed["executed"] is True
     assert calls == [("deploy.production", {"approved": False})]
-
     assert client.resume(
         approval_id,
         {
@@ -207,6 +208,68 @@ def test_approval_vote_and_resume_are_authenticated_and_single_use():
     assert replay["executed"] is False
     assert calls == [("deploy.production", {"approved": False})]
 
+
+def test_approval_lifecycle_and_expiry_emit_telemetry():
+    calls = []
+    now = [100.0]
+    telemetry = TelemetryCollector(clock=lambda: now[0])
+    service, provider = _service(calls, clock=lambda: now[0], telemetry=telemetry)
+    client = GovernanceClient(InProcessTransport(service))
+    initial = client.decide(
+        DecisionRequest(
+            actor=Actor("agent-1", 5),
+            capability="deploy.production",
+            params={"approved": False},
+            idempotency_key="telemetry-approval",
+            credential=_credential(provider, now=100.0),
+        )
+    )
+    approval_id = initial["approval_request_id"]
+    approver = _credential(provider, subject="approver-1", now=100.0)
+    client.vote(
+        approval_id,
+        {
+            "decision": "approve",
+            "role": "ReleaseManager",
+            "actor_id": "approver-1",
+            "credential": approver,
+            "idempotency_key": "telemetry-vote",
+        },
+    )
+    client.resume(
+        approval_id,
+        {
+            "actor_id": "approver-1",
+            "credential": approver,
+            "idempotency_key": "telemetry-resume",
+        },
+    )
+    names = [event.event_name for event in telemetry.events()]
+    assert "governance.approval.requested" in names
+    assert "governance.approval.voted" in names
+    assert "governance.approval.resumed" in names
+
+    calls = []
+    expiry_telemetry = TelemetryCollector(clock=lambda: 1000.0)
+    expiring, expiring_provider = _service(
+        calls, clock=lambda: now[0], telemetry=expiry_telemetry
+    )
+    expired_request = expiring.handle(
+        "POST",
+        "/v1/decisions",
+        DecisionRequest(
+            actor=Actor("agent-1", 5),
+            capability="deploy.production",
+            params={"approved": False},
+            idempotency_key="telemetry-expiry",
+            credential=_credential(expiring_provider, now=100.0),
+        ).to_dict(),
+    )
+    now[0] = 1000.0
+    expiring.handle("GET", f"/v1/approvals/{expired_request.body['approval_request_id']}")
+    assert "governance.approval.expired" in [
+        event.event_name for event in expiry_telemetry.events()
+    ]
 
 def test_unauthorized_vote_is_rejected_and_schema_is_strict():
     calls = []

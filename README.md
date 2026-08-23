@@ -5,7 +5,8 @@
 A formal model, a reference implementation, and a runtime-agnostic benchmark for deciding whether an autonomous agent's intended action is permitted **before it executes** — accounting for delegated authority, human escalation, revocation, and runtime context change.
 
 The theory is frozen at **Foundations v1**. The reference implementation's
-v0.3 release completes milestones M1–M21. GovernanceBench v0.2
+v0.3 release completes milestones M1–M21; Phase 4 now completes M22–M26.
+GovernanceBench v0.2
 remains hand-authored so its labels remain auditable. Phase 3 adds
 implementation-independent conformance, durable recovery, model-based
 assurance, quorum approvals, and a focused CLI while preserving the frozen
@@ -73,6 +74,7 @@ docs/              GitHub Pages site
 | M23 | Authenticated workload and actor identity | ✅ |
 | M24 | Versioned service API and Python SDK | ✅ |
 | M25 | Transactional durable storage | ✅ |
+| M26 | Observability and decision telemetry | ✅ |
 
 ## Quickstart
 
