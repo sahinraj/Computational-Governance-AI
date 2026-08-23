@@ -70,6 +70,24 @@ from .sdk import (
     InProcessTransport,
     ServiceClientError,
 )
+from .telemetry import (
+    APPROVAL_EXPIRED,
+    APPROVAL_REQUESTED,
+    APPROVAL_RESUMED,
+    APPROVAL_VOTED,
+    DECISION_EVALUATED,
+    DECISION_REPLAYED,
+    EXECUTION_COMPLETED,
+    RECOVERY_FAILURE,
+    TELEMETRY_SCHEMA_VERSION,
+    InMemoryTelemetrySink,
+    JsonlTelemetrySink,
+    RedactionPolicy,
+    TelemetryCollector,
+    TelemetryError,
+    TelemetryEvent,
+    TelemetrySink,
+)
 
 __all__ = [
     "Actor", "Capability", "Action", "Context", "Decision", "DecisionKind",
@@ -97,4 +115,9 @@ __all__ = [
     "GovernanceHTTPServer", "ServiceError", "ServiceResponse",
     "create_http_server", "GovernanceClient", "HTTPTransport",
     "serve_http", "InProcessTransport", "ServiceClientError",
+    "TELEMETRY_SCHEMA_VERSION", "TelemetryError", "TelemetryEvent", "TelemetrySink",
+    "TelemetryCollector", "InMemoryTelemetrySink", "JsonlTelemetrySink", "RedactionPolicy",
+    "DECISION_EVALUATED", "DECISION_REPLAYED", "EXECUTION_COMPLETED",
+    "APPROVAL_REQUESTED", "APPROVAL_VOTED", "APPROVAL_RESUMED", "APPROVAL_EXPIRED",
+    "RECOVERY_FAILURE",
 ]

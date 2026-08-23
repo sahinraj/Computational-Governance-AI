@@ -152,6 +152,14 @@ def test_durable_claims_are_explicit_and_terminal_results_are_immutable(tmp_path
         store.complete_idempotency(
             "decisions", "r1", "h1", response_status=500, response={"ok": False}
         )
+    tuple_response = store.begin_idempotency("decisions", "r2", "h2")
+    assert tuple_response.acquired is True
+    tuple_completed = store.complete_idempotency(
+        "decisions", "r2", "h2", response_status=200, response={"items": (1, 2)}
+    )
+    assert store.complete_idempotency(
+        "decisions", "r2", "h2", response_status=200, response={"items": (1, 2)}
+    ) == tuple_completed
 
     claim = store.claim_execution("decisions", "r1", "c1")
     assert claim.acquired is True
@@ -165,4 +173,12 @@ def test_durable_claims_are_explicit_and_terminal_results_are_immutable(tmp_path
         store.complete_execution(
             "decisions", "r1", "c1", status="failed", outcome={"remote_id": "x"}
         )
+    tuple_claim = store.claim_execution("decisions", "r2", "c2")
+    assert tuple_claim.acquired is True
+    tuple_finished = store.complete_execution(
+        "decisions", "r2", "c2", status="succeeded", outcome={"items": (1, 2)}
+    )
+    assert store.complete_execution(
+        "decisions", "r2", "c2", status="succeeded", outcome={"items": (1, 2)}
+    ) == tuple_finished
     store.close()

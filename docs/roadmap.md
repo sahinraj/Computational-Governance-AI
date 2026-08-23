@@ -2,7 +2,7 @@
 
 **Project:** Computational Governance for Autonomous Systems
 **Current release:** v0.3.0
-**Current state:** Phase 3 complete; M22–M24 complete; Phase 4 in progress
+**Current state:** Phase 3 complete; M22–M26 complete; Phase 4 in progress
 **Roadmap date:** 2026-08-14
 
 ## North-star direction
@@ -123,6 +123,11 @@ the unresolved external-operation outcome after a process crash.
 
 ### M26 — Observability and decision telemetry
 
+**Status: complete.** The reference service now emits versioned, redacted
+decision, approval, execution, replay, expiry, and recovery events with stable
+correlation and decision identifiers. Local in-memory and JSONL sinks provide
+queryable output without making telemetry a prerequisite for enforcement.
+
 Adopt OpenTelemetry conventions for traces, metrics, logs, and events. Every
 governed action receives a correlation ID, decision ID, policy version, actor
 identity, approval reference, execution outcome, latency, and failure reason.
@@ -234,7 +239,7 @@ latency, auditability, and operator-acceptance targets.
 
 ## Immediate next action
 
-Begin M26 with decision telemetry and redacted end-to-end correlation. In
-parallel, wire the M24 service's pending approvals, idempotency records, and
-execution claims to the M25 repository boundary before the production-kernel
-gate; this integration is tracked as the next Phase 4 follow-up.
+Begin M27 with policy lifecycle and controlled rollout. In parallel, wire the
+M24 service's pending approvals, idempotency records, and execution claims to
+the M25 repository boundary before the production-kernel gate; this integration
+is tracked in GitHub issue #29.

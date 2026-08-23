@@ -10,6 +10,9 @@
 - Added the M25 SQLite transactional repository with optimistic revisions,
   durable idempotency and execution claims, monotonic audit sequences,
   backup/restore, retention, migration schema, and crash/concurrency tests.
+- Added M26 redacted decision observability with stable correlation and decision
+  IDs, approval/execution/replay/recovery events, local JSONL export, metrics,
+  and configurable secret classification.
 
 ## 0.3.0 — 2026-08-09
 

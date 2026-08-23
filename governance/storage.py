@@ -531,6 +531,7 @@ class SQLiteGovernanceStore:
         response: Mapping[str, Any],
     ) -> DurableIdempotencyRecord:
         encoded = self._json_payload(response)
+        normalized_response = json.loads(encoded)
 
         def operation(connection: sqlite3.Connection) -> DurableIdempotencyRecord:
             row = connection.execute(
@@ -545,10 +546,11 @@ class SQLiteGovernanceStore:
             existing_response = (
                 None if row["response_json"] is None else json.loads(row["response_json"])
             )
+            requested_response = json.loads(encoded)
             if row["status"] == "complete":
                 if (
                     row["response_status"] != int(response_status)
-                    or existing_response != dict(response)
+                    or existing_response != requested_response
                 ):
                     raise ConcurrencyError(
                         f"completed idempotency result conflict {scope}/{key}"
@@ -563,7 +565,7 @@ class SQLiteGovernanceStore:
                 (int(response_status), encoded, scope, key),
             )
             return DurableIdempotencyRecord(
-                scope, key, request_hash, "complete", int(response_status), dict(response),
+                scope, key, request_hash, "complete", int(response_status), normalized_response,
                 acquired=False,
             )
 
@@ -619,6 +621,7 @@ class SQLiteGovernanceStore:
         if status not in {"succeeded", "failed", "unknown"}:
             raise StoreError("execution status must be succeeded, failed, or unknown")
         encoded = None if outcome is None else self._json_payload(outcome)
+        normalized_outcome = None if encoded is None else json.loads(encoded)
 
         def operation(connection: sqlite3.Connection) -> ExecutionClaim:
             row = connection.execute(
@@ -631,10 +634,9 @@ class SQLiteGovernanceStore:
             existing_outcome = (
                 None if row["outcome_json"] is None else json.loads(row["outcome_json"])
             )
+            requested_outcome = None if encoded is None else json.loads(encoded)
             if row["status"] != "claimed":
-                if row["status"] != status or existing_outcome != (
-                    None if outcome is None else dict(outcome)
-                ):
+                if row["status"] != status or existing_outcome != requested_outcome:
                     raise ConcurrencyError(
                         f"completed execution result conflict {scope}/{key}"
                     )
@@ -648,7 +650,7 @@ class SQLiteGovernanceStore:
             )
             return ExecutionClaim(
                 scope, key, claim_id, status,
-                None if outcome is None else dict(outcome), acquired=False,
+                normalized_outcome, acquired=False,
             )
 
         return self._transaction(operation)

@@ -1,6 +1,6 @@
 # Operator Guide
 
-This guide describes the supported reference deployment boundary after M25.
+This guide describes the supported reference deployment boundary after M26.
 
 ## Deployment modes
 
@@ -26,6 +26,8 @@ unknown.
 5. Register only explicit capability handlers. Missing handlers fail closed.
 6. Start the M24 HTTP service in enforce mode and verify a readiness check that
    opens the database and reads its schema version.
+7. Configure the M26 telemetry collector and confirm that local events contain
+   correlation/decision IDs while raw credentials and tool parameters are absent.
 
 Database credentials, remote TLS settings, and encryption keys belong in a
 secret manager or deployment environment. They must not be committed.
@@ -57,3 +59,4 @@ environment; this project does not promise fixed RTO or RPO values.
 - [ ] Retention and audit-archive policy is approved.
 - [ ] Recovery and external-operation reconciliation procedures are documented.
 - [ ] No test credentials or unmanaged database credentials are deployed.
+- [ ] Telemetry output is access-controlled, redacted, and monitored for exporter failures.
