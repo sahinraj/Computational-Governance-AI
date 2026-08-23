@@ -8,6 +8,7 @@ import pytest
 
 from governance import (
     Actor,
+    ApprovalManager,
     GovernanceService,
     Interceptor,
     InterceptorMode,
@@ -108,3 +109,76 @@ def test_custom_redaction_keys_are_supported():
         attributes={"internal_id": "private", "visible": "yes"},
     )
     assert event.attributes == {"internal_id": "[REDACTED]", "visible": "yes"}
+
+
+def test_telemetry_failure_does_not_break_idempotent_execution():
+    policy = compile_policy("LAW-1\n  capability: payment.send\n")
+    calls = []
+
+    def failing_clock():
+        raise RuntimeError("telemetry clock unavailable")
+
+    service = GovernanceService(
+        RuntimeAdapter(Interceptor(policy, mode=InterceptorMode.ENFORCE)),
+        actor_registry={"agent-1": Actor("agent-1", 5)},
+        handlers={"payment.send": lambda params: calls.append(params) or "sent"},
+        telemetry=TelemetryCollector(clock=failing_clock),
+    )
+    request = {
+        "actor": {"id": "agent-1", "authority_level": 5},
+        "capability": "payment.send",
+        "params": {"amount": 10},
+        "idempotency_key": "telemetry-failure-1",
+    }
+
+    first = service.handle("POST", "/v1/decisions", request)
+    replay = service.handle("POST", "/v1/decisions", request)
+
+    assert first.status == replay.status == 200
+    assert first.body == replay.body
+    assert calls == [{"amount": 10}]
+
+
+def test_expiry_telemetry_preserves_ids_and_is_emitted_once():
+    policy = compile_policy(
+        "LAW-1\n"
+        "  capability: deploy.production\n"
+        "  constraint: approved == true\n"
+        "  requires_approval: ReleaseManager\n"
+        "  on_violation: escalate\n",
+        roles={"ReleaseManager"},
+    )
+    now = [100.0]
+    telemetry = TelemetryCollector(clock=lambda: now[0])
+    manager = ApprovalManager(ttl=1.0)
+    service = GovernanceService(
+        RuntimeAdapter(
+            Interceptor(policy, mode=InterceptorMode.ENFORCE, approval_manager=manager)
+        ),
+        approval_manager=manager,
+        actor_registry={"agent-1": Actor("agent-1", 5)},
+        handlers={"deploy.production": lambda params: "deployed"},
+        telemetry=telemetry,
+        clock=lambda: now[0],
+    )
+    request = {
+        "actor": {"id": "agent-1", "authority_level": 5},
+        "capability": "deploy.production",
+        "params": {},
+        "idempotency_key": "expiry-telemetry-1",
+        "correlation_id": "corr-expiry-1",
+    }
+    response = service.handle("POST", "/v1/decisions", request)
+    approval_id = response.body["approval_request_id"]
+    expected_decision_id = response.body["decision_id"]
+    now[0] = 102.0
+
+    service.handle("GET", f"/v1/approvals/{approval_id}")
+    service.handle("GET", f"/v1/approvals/{approval_id}")
+
+    expiry_events = [
+        event for event in telemetry.events() if event.event_name == "governance.approval.expired"
+    ]
+    assert len(expiry_events) == 1
+    assert expiry_events[0].correlation_id == "corr-expiry-1"
+    assert expiry_events[0].decision_id == expected_decision_id

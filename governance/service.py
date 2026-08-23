@@ -231,6 +231,7 @@ class GovernanceService:
         self._lock = threading.RLock()
         self._idempotency: dict[str, tuple[str, ServiceResponse]] = {}
         self._pending: dict[str, _PendingApproval] = {}
+        self._expired_approvals: set[str] = set()
 
     @staticmethod
     def _error(error: ServiceError) -> ServiceResponse:
@@ -321,19 +322,25 @@ class GovernanceService:
         failure_reason: Optional[str] = None,
         attributes: Optional[Mapping[str, Any]] = None,
     ) -> None:
-        self.telemetry.emit(
-            event_name,
-            correlation_id=correlation_id,
-            decision_id=decision_id,
-            policy_fingerprint=policy_fingerprint(self.runtime.interceptor.policy),
-            policy_version=self.policy_version,
-            actor_identity_reference=identity_reference,
-            approval_reference=approval_reference,
-            outcome=outcome,
-            latency_ms=latency_ms,
-            failure_reason=failure_reason,
-            attributes=attributes,
-        )
+        try:
+            self.telemetry.emit(
+                event_name,
+                correlation_id=correlation_id,
+                decision_id=decision_id,
+                policy_fingerprint=policy_fingerprint(self.runtime.interceptor.policy),
+                policy_version=self.policy_version,
+                actor_identity_reference=identity_reference,
+                approval_reference=approval_reference,
+                outcome=outcome,
+                latency_ms=latency_ms,
+                failure_reason=failure_reason,
+                attributes=attributes,
+            )
+        except Exception:
+            # Observability is advisory.  A clock, redactor, policy fingerprint,
+            # or custom collector failure must never alter enforcement, execution,
+            # or idempotent response caching.
+            return
 
     def _idempotent(self, key: str, request_value: Mapping[str, Any]) -> Optional[ServiceResponse]:
         entry = self._idempotency.get(key)
@@ -535,12 +542,19 @@ class GovernanceService:
             request = self.approval_manager.get(request_id, now=float(self.clock()))
         except ApprovalError as exc:
             raise ServiceError("approval_not_found", str(exc), HTTPStatus.NOT_FOUND) from exc
-        if request.state.value == "expired":
-            correlation_id = "corr-" + fingerprint({"approval": request_id})[:24]
+        if request.state.value == "expired" and request_id not in self._expired_approvals:
+            self._expired_approvals.add(request_id)
+            pending = self._pending.get(request_id)
+            if pending is None:
+                correlation_id = "corr-" + fingerprint({"approval": request_id})[:24]
+                decision_id = "decision-" + fingerprint(request_id)[:24]
+            else:
+                correlation_id = pending.correlation_id
+                decision_id = pending.decision_id
             self._emit_decision(
                 event_name=APPROVAL_EXPIRED,
                 correlation_id=correlation_id,
-                decision_id="decision-" + fingerprint(request_id)[:24],
+                decision_id=decision_id,
                 approval_reference=request_id,
                 outcome="expired",
             )
