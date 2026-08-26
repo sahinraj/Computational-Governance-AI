@@ -198,17 +198,42 @@ def main(argv: list[str] | None = None) -> int:
             production_approval_threshold=args.production_approval_threshold,
             approver_roles=approval_roles,
         )
+        case = SimulationCase(
+            "cli-case",
+            _action(args),
+            Context(now=args.now),
+        )
+        if baseline is not None:
+            manager.draft(baseline, owner=args.owner, reason="baseline registered")
+            manager.validate(args.policy_id, args.baseline_version, actor_id=args.owner)
+            manager.simulate(
+                args.policy_id,
+                args.baseline_version,
+                [case],
+                environment=args.environment,
+                reason="baseline verified",
+            )
+            for item in args.approver:
+                approver_id, role = item.split(":", 1)
+                manager.approve(
+                    args.policy_id,
+                    args.baseline_version,
+                    approver_id=approver_id,
+                    role=role,
+                    environment=args.environment,
+                )
+            manager.deploy(
+                args.policy_id,
+                args.baseline_version,
+                environment=args.environment,
+                reason="baseline activation",
+            )
         manager.draft(
             bundle,
             owner=args.owner,
             expires_at=args.expires_at,
         )
         manager.validate(args.policy_id, args.policy_version, actor_id=args.owner)
-        case = SimulationCase(
-            "cli-case",
-            _action(args),
-            Context(now=args.now),
-        )
         simulation = manager.simulate(
             args.policy_id,
             args.policy_version,

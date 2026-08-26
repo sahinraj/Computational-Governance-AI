@@ -17,6 +17,9 @@
   validation, simulation, quorum approval, canary evaluation, environment
   promotion, rollback, expiry monitoring, fail-closed expiry behavior, and a
   reference `policy-rollout` CLI workflow.
+- Hardened M27 review findings by binding canaries to manager-recorded evidence,
+  enforcing distinct production roles, activating CLI baselines, and tracking
+  supersession and expiry per environment.
 
 ## 0.3.0 — 2026-08-09
 

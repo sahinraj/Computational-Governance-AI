@@ -233,6 +233,8 @@ class PolicyLifecycleRecord:
     content_hash: str
     owner: str
     state: PolicyLifecycleState
+    environment: Optional[str]
+    environment_states: Mapping[str, PolicyLifecycleState]
     expires_at: Optional[float]
     simulation: Optional[SimulationReport]
     canaries: Mapping[str, CanaryReport]
@@ -245,6 +247,10 @@ class PolicyLifecycleRecord:
             "content_hash": self.content_hash,
             "owner": self.owner,
             "state": self.state.value,
+            "environment": self.environment,
+            "environment_states": {
+                key: value.value for key, value in sorted(self.environment_states.items())
+            },
             "expires_at": self.expires_at,
             "simulation": None if self.simulation is None else self.simulation.to_dict(),
             "canaries": {key: value.to_dict() for key, value in sorted(self.canaries.items())},
@@ -261,6 +267,7 @@ class _LifecycleEntry:
     owner: str
     expires_at: Optional[float]
     state: PolicyLifecycleState = PolicyLifecycleState.DRAFT
+    environment_states: dict[str, PolicyLifecycleState] = field(default_factory=dict)
     simulation: Optional[SimulationReport] = None
     canaries: dict[str, CanaryReport] = field(default_factory=dict)
 
@@ -310,10 +317,18 @@ class PolicyLifecycleManager:
         except KeyError as exc:
             raise PolicyLifecycleError(f"unknown policy {key[0]}@{key[1]}") from exc
 
-    def record(self, policy_id: str, version: str) -> PolicyLifecycleRecord:
+    def record(
+        self,
+        policy_id: str,
+        version: str,
+        *,
+        environment: Optional[str] = None,
+    ) -> PolicyLifecycleRecord:
         """Return a read-only status view suitable for operators and APIs."""
         policy_id = _non_empty(policy_id, "policy_id")
         version = _non_empty(version, "policy_version")
+        if environment is not None:
+            environment = _non_empty(environment, "environment")
         entry = self._entry(policy_id, version)
         approvals = {
             environment: tuple(votes)
@@ -325,7 +340,9 @@ class PolicyLifecycleManager:
             policy_version=entry.bundle.policy_version,
             content_hash=entry.bundle.content_hash,
             owner=entry.owner,
-            state=entry.state,
+            state=entry.environment_states.get(environment, entry.state),
+            environment=environment,
+            environment_states=dict(entry.environment_states),
             expires_at=entry.expires_at,
             simulation=entry.simulation,
             canaries=dict(entry.canaries),
@@ -337,6 +354,18 @@ class PolicyLifecycleManager:
         before = self._entry(policy_id, before_version).bundle
         after = self._entry(policy_id, after_version).bundle
         return before.diff(after)
+
+    def _recompute_state(self, entry: _LifecycleEntry) -> None:
+        """Derive the aggregate state without hiding active environments."""
+        states = tuple(entry.environment_states.values())
+        if PolicyLifecycleState.DEPLOYED in states:
+            entry.state = PolicyLifecycleState.DEPLOYED
+        elif PolicyLifecycleState.EXPIRED in states:
+            entry.state = PolicyLifecycleState.EXPIRED
+        elif PolicyLifecycleState.ROLLED_BACK in states:
+            entry.state = PolicyLifecycleState.ROLLED_BACK
+        elif PolicyLifecycleState.SUPERSEDED in states:
+            entry.state = PolicyLifecycleState.SUPERSEDED
 
     def _append_event(
         self,
@@ -619,6 +648,10 @@ class PolicyLifecycleManager:
         votes = self._approvals.setdefault(key, [])
         if any(vote.approver_id == approver_id for vote in votes):
             raise PolicyLifecycleError(f"approver {approver_id!r} already voted")
+        if environment == "production" and self.approver_roles and any(
+            vote.role == role for vote in votes
+        ):
+            raise PolicyLifecycleError(f"approver role {role!r} already voted")
         vote = PolicyApproval(approver_id, role, _non_empty(reason, "reason"), _finite_time(self.clock(), "lifecycle clock"))
         votes.append(vote)
         threshold = self.production_approval_threshold if environment == "production" else 1
@@ -663,7 +696,10 @@ class PolicyLifecycleManager:
         previous_version = self._active.get((policy_id, environment))
         if environment == "production":
             if previous_version is not None:
-                report = canary_report or entry.canaries.get(environment)
+                stored_report = entry.canaries.get(environment)
+                if canary_report is not None and stored_report != canary_report:
+                    raise PolicyLifecycleError("supplied canary evidence is not manager-recorded")
+                report = stored_report
                 if (
                     report is None
                     or report.policy_id != policy_id
@@ -679,18 +715,20 @@ class PolicyLifecycleManager:
             return self._events[-1]
         if previous_version is not None:
             previous = self._entry(policy_id, previous_version)
-            previous_state = previous.state
-            previous.state = PolicyLifecycleState.SUPERSEDED
+            previous_state = previous.environment_states.get(environment, previous.state)
+            previous.environment_states[environment] = PolicyLifecycleState.SUPERSEDED
+            self._recompute_state(previous)
             self._append_event(
                 previous,
                 event="superseded",
                 from_state=previous_state,
-                to_state=previous.state,
+                to_state=PolicyLifecycleState.SUPERSEDED,
                 reason=f"superseded by {version}: {reason}",
                 environment=environment,
                 actor_id=actor_id,
             )
-        previous_state = entry.state
+        previous_state = entry.environment_states.get(environment, entry.state)
+        entry.environment_states[environment] = PolicyLifecycleState.DEPLOYED
         entry.state = PolicyLifecycleState.DEPLOYED
         self._active[active_key] = version
         return self._append_event(
@@ -747,20 +785,22 @@ class PolicyLifecycleManager:
         if target.state is PolicyLifecycleState.EXPIRED:
             raise PolicyLifecycleError("cannot roll back to an expired policy")
         self._require_production_approval(policy_id, target_version, environment)
-        previous = current.state
-        current.state = PolicyLifecycleState.ROLLED_BACK
+        current_environment_state = current.environment_states.get(environment, current.state)
+        current.environment_states[environment] = PolicyLifecycleState.ROLLED_BACK
+        self._recompute_state(current)
         self._active[(policy_id, environment)] = target_version
         self._append_event(
             current,
             event="rolled_back",
-            from_state=previous,
-            to_state=current.state,
+            from_state=current_environment_state,
+            to_state=PolicyLifecycleState.ROLLED_BACK,
             reason=reason,
             environment=environment,
             actor_id=actor_id,
             attributes={"restored_version": target_version},
         )
-        target_previous = target.state
+        target_previous = target.environment_states.get(environment, target.state)
+        target.environment_states[environment] = PolicyLifecycleState.DEPLOYED
         target.state = PolicyLifecycleState.DEPLOYED
         return self._append_event(
             target,
@@ -780,14 +820,15 @@ class PolicyLifecycleManager:
             entry = self._entry(policy_id, version)
             if entry.expires_at is None or current < entry.expires_at:
                 continue
-            previous = entry.state
-            entry.state = PolicyLifecycleState.EXPIRED
+            previous = entry.environment_states.get(environment, entry.state)
+            entry.environment_states[environment] = PolicyLifecycleState.EXPIRED
+            self._recompute_state(entry)
             self._active.pop((policy_id, environment), None)
             events.append(self._append_event(
                 entry,
                 event="expired",
                 from_state=previous,
-                to_state=entry.state,
+                to_state=PolicyLifecycleState.EXPIRED,
                 reason="policy expiry reached",
                 environment=environment,
                 attributes={"expires_at": entry.expires_at},
