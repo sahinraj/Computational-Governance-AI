@@ -104,7 +104,8 @@ def test_policy_moves_through_auditable_production_rollout_and_rollback():
     _approve(manager, "1.1.0")
     manager.deploy("payments", "1.1.0", reason="controlled production rollout")
     assert manager.current("payments").policy_version == "1.1.0"
-    assert manager.record("payments", "1.0.0").state is PolicyLifecycleState.SUPERSEDED
+    assert manager.record("payments", "1.0.0", environment="production").state is PolicyLifecycleState.SUPERSEDED
+    assert manager.record("payments", "1.0.0").state is PolicyLifecycleState.DEPLOYED
 
     manager.rollback(
         "payments",
@@ -134,8 +135,33 @@ def test_production_deployment_requires_two_distinct_approvals_and_canary():
     manager.approve(
         "payments", "1.0.0", approver_id="security-1", role="SecurityLead"
     )
+    with pytest.raises(PolicyLifecycleError, match="role .* already voted"):
+        manager.approve(
+            "payments", "1.0.0", approver_id="security-2", role="SecurityLead"
+        )
     with pytest.raises(PolicyLifecycleError, match="approved"):
         manager.deploy("payments", "1.0.0")
+
+
+def test_supplied_canary_must_match_manager_recorded_evidence():
+    manager = PolicyLifecycleManager(production_approval_threshold=1)
+    v1 = _bundle(V1, "1.0.0")
+    v2 = _bundle(V2, "1.1.0")
+    manager.draft(v1, owner="policy-owner")
+    manager.validate("payments", "1.0.0")
+    manager.simulate("payments", "1.0.0", [_case(10)])
+    manager.approve("payments", "1.0.0", approver_id="owner-1", role="Owner")
+    manager.deploy("payments", "1.0.0")
+    manager.draft(v2, owner="policy-owner")
+    manager.validate("payments", "1.1.0")
+    manager.simulate("payments", "1.1.0", [_case(75)])
+    failed = manager.canary(
+        "payments", "1.1.0", [_case(75)], sample_rate=1.0,
+        max_changed_decisions=0,
+    )
+    manager.approve("payments", "1.1.0", approver_id="owner-1", role="Owner")
+    with pytest.raises(PolicyLifecycleError, match="manager-recorded"):
+        manager.deploy("payments", "1.1.0", canary_report=replace(failed, passed=True))
 
 
 def test_stale_canary_evidence_cannot_authorize_against_a_new_baseline():
@@ -158,7 +184,7 @@ def test_stale_canary_evidence_cannot_authorize_against_a_new_baseline():
     manager.deploy("payments", "1.1.0", canary_report=canary)
     manager.simulate("payments", "1.2.0", [_case(10)])
     manager.approve("payments", "1.2.0", approver_id="owner-1", role="Owner")
-    with pytest.raises(PolicyLifecycleError, match="matching canary"):
+    with pytest.raises(PolicyLifecycleError, match="manager-recorded"):
         manager.deploy("payments", "1.2.0", canary_report=canary)
 
 
@@ -236,3 +262,28 @@ def test_policy_rollout_cli_executes_auditable_initial_deployment(tmp_path, caps
     payload = json.loads(capsys.readouterr().out)
     assert payload["record"]["state"] == "deployed"
     assert payload["events"][-1]["event"] == "deployed"
+
+
+def test_policy_rollout_cli_blocks_failed_canary_against_supplied_baseline(tmp_path):
+    baseline_path = tmp_path / "baseline.law"
+    candidate_path = tmp_path / "candidate.law"
+    baseline_path.write_text(V1, encoding="utf-8")
+    candidate_path.write_text(V2, encoding="utf-8")
+    from governance.cli import main
+
+    with pytest.raises(PolicyLifecycleError, match="failed canary"):
+        main([
+            "policy-rollout",
+            str(candidate_path),
+            "--policy-id", "payments",
+            "--policy-version", "1.1.0",
+            "--baseline", str(baseline_path),
+            "--baseline-version", "1.0.0",
+            "--owner", "policy-owner",
+            "--approver", "security-1:SecurityLead",
+            "--approver", "release-1:ReleaseManager",
+            "--actor-id", "agent-1",
+            "--capability", "payment.send",
+            "--actor-capability", "payment.send",
+            "--params", '{"amount": 75}',
+        ])

@@ -59,6 +59,8 @@ manager.deploy("deployments", "1.1.0", canary_report=canary)
 candidate/baseline decision snapshots. It never copies raw tool parameters.
 `PolicyLifecycleManager.record()` returns the owner, state, expiry, approvals,
 simulation evidence, and canary evidence for operator/API responses.
+Pass `environment=` to inspect environment-scoped status when one policy
+version is active in more than one environment.
 
 ## CLI
 
@@ -77,6 +79,9 @@ python -m governance policy-rollout policy.law \
 For a change, add `--baseline baseline.law --baseline-version 1.0.0`.
 The command emits the simulation, canary report, lifecycle record, and
 append-only lifecycle events as JSON.
+
+The supplied baseline is activated in the reference manager before the
+candidate is evaluated, so a failed canary blocks production deployment.
 
 ## Expiry and rollback
 
