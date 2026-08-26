@@ -13,6 +13,10 @@
 - Added M26 redacted decision observability with stable correlation and decision
   IDs, approval/execution/replay/recovery events, local JSONL export, metrics,
   and configurable secret classification.
+- Added M27 policy lifecycle and controlled rollout primitives: auditable draft,
+  validation, simulation, quorum approval, canary evaluation, environment
+  promotion, rollback, expiry monitoring, fail-closed expiry behavior, and a
+  reference `policy-rollout` CLI workflow.
 
 ## 0.3.0 — 2026-08-09
 

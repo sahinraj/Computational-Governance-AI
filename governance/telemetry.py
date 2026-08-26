@@ -28,6 +28,7 @@ APPROVAL_VOTED = "governance.approval.voted"
 APPROVAL_RESUMED = "governance.approval.resumed"
 APPROVAL_EXPIRED = "governance.approval.expired"
 RECOVERY_FAILURE = "governance.recovery.failure"
+POLICY_LIFECYCLE = "governance.policy.lifecycle"
 
 
 class TelemetryError(ValueError):
