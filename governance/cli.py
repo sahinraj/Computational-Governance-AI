@@ -11,6 +11,7 @@ from .audit import AuditLog, replay_event
 from .interceptor import Interceptor
 from .model import Action, Actor, Capability, Context
 from .compiler import compile_policy
+from .lifecycle import PolicyLifecycleManager, SimulationCase
 from .versioning import PolicyBundle
 
 
@@ -86,6 +87,31 @@ def _build_parser() -> argparse.ArgumentParser:
     diff.add_argument("before", type=Path)
     diff.add_argument("after", type=Path)
 
+    rollout = subparsers.add_parser(
+        "policy-rollout",
+        help="validate, simulate, approve, and deploy one versioned policy",
+    )
+    rollout.add_argument("policy", type=Path)
+    rollout.add_argument("--policy-id", required=True)
+    rollout.add_argument("--policy-version", required=True)
+    rollout.add_argument("--baseline", type=Path)
+    rollout.add_argument("--baseline-version")
+    rollout.add_argument("--owner", required=True)
+    rollout.add_argument("--role", action="append", default=[])
+    rollout.add_argument(
+        "--approver",
+        action="append",
+        default=[],
+        metavar="ID:ROLE",
+        help="distinct approval vote; repeat for the production quorum",
+    )
+    rollout.add_argument("--production-approval-threshold", type=int, default=2)
+    rollout.add_argument("--environment", default="production")
+    rollout.add_argument("--sample-rate", type=float, default=1.0)
+    rollout.add_argument("--max-changed-decisions", type=int, default=0)
+    rollout.add_argument("--expires-at", type=float)
+    _common_action(rollout)
+
     tool_call = subparsers.add_parser("tool-call", help="evaluate one pre-execution tool call")
     tool_call.add_argument("--policy", type=Path, required=True)
     tool_call.add_argument("--role", action="append", default=[])
@@ -145,6 +171,83 @@ def main(argv: list[str] | None = None) -> int:
         before = PolicyBundle.from_json(args.before.read_text(encoding="utf-8"))
         after = PolicyBundle.from_json(args.after.read_text(encoding="utf-8"))
         print(json.dumps(before.diff(after), indent=2, sort_keys=True))
+        return 0
+    if args.command == "policy-rollout":
+        bundle = PolicyBundle.from_source(
+            args.policy.read_text(encoding="utf-8"),
+            policy_id=args.policy_id,
+            policy_version=args.policy_version,
+            roles=args.role,
+        )
+        baseline = None
+        if args.baseline:
+            if not args.baseline_version:
+                raise SystemExit("--baseline-version is required with --baseline")
+            baseline = PolicyBundle.from_source(
+                args.baseline.read_text(encoding="utf-8"),
+                policy_id=args.policy_id,
+                policy_version=args.baseline_version,
+                roles=args.role,
+            )
+        approval_roles = set()
+        for item in args.approver:
+            if ":" not in item or item.count(":") != 1:
+                raise SystemExit("--approver must use ID:ROLE format")
+            approval_roles.add(item.split(":", 1)[1])
+        manager = PolicyLifecycleManager(
+            production_approval_threshold=args.production_approval_threshold,
+            approver_roles=approval_roles,
+        )
+        manager.draft(
+            bundle,
+            owner=args.owner,
+            expires_at=args.expires_at,
+        )
+        manager.validate(args.policy_id, args.policy_version, actor_id=args.owner)
+        case = SimulationCase(
+            "cli-case",
+            _action(args),
+            Context(now=args.now),
+        )
+        simulation = manager.simulate(
+            args.policy_id,
+            args.policy_version,
+            [case],
+            baseline=baseline,
+            environment=args.environment,
+        )
+        canary = None
+        if baseline is not None:
+            canary = manager.canary(
+                args.policy_id,
+                args.policy_version,
+                [case],
+                baseline=baseline,
+                environment=args.environment,
+                sample_rate=args.sample_rate,
+                max_changed_decisions=args.max_changed_decisions,
+            )
+        for item in args.approver:
+            approver_id, role = item.split(":", 1)
+            manager.approve(
+                args.policy_id,
+                args.policy_version,
+                approver_id=approver_id,
+                role=role,
+                environment=args.environment,
+            )
+        manager.deploy(
+            args.policy_id,
+            args.policy_version,
+            environment=args.environment,
+            canary_report=canary,
+        )
+        print(json.dumps({
+            "simulation": simulation.to_dict(),
+            "canary": None if canary is None else canary.to_dict(),
+            "record": manager.record(args.policy_id, args.policy_version).to_dict(),
+            "events": [event.to_dict() for event in manager.events],
+        }, indent=2, sort_keys=True))
         return 0
     if args.command == "tool-call":
         policy = _policy(args.policy, args.role)

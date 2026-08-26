@@ -47,6 +47,20 @@ from .versioning import (
     VersioningError,
     policy_semantics,
 )
+from .lifecycle import (
+    CanaryReport,
+    DecisionSnapshot,
+    PolicyApproval,
+    PolicyExpiryMode,
+    PolicyLifecycleError,
+    PolicyLifecycleEvent,
+    PolicyLifecycleManager,
+    PolicyLifecycleRecord,
+    PolicyLifecycleState,
+    SimulationCase,
+    SimulationCaseResult,
+    SimulationReport,
+)
 from .identity import (
     IdentityError,
     IdentityProvider,
@@ -78,6 +92,7 @@ from .telemetry import (
     DECISION_EVALUATED,
     DECISION_REPLAYED,
     EXECUTION_COMPLETED,
+    POLICY_LIFECYCLE,
     RECOVERY_FAILURE,
     TELEMETRY_SCHEMA_VERSION,
     InMemoryTelemetrySink,
@@ -109,6 +124,11 @@ __all__ = [
     "DurableIdempotencyRecord", "ExecutionClaim",
     "POLICY_BUNDLE_VERSION", "PolicyBundle", "PolicyVersionEvent",
     "PolicyVersionStore", "VersioningError", "policy_semantics",
+    "PolicyLifecycleError", "PolicyLifecycleState", "PolicyExpiryMode",
+    "PolicyLifecycleEvent", "PolicyLifecycleManager", "PolicyApproval",
+    "PolicyLifecycleRecord",
+    "SimulationCase", "SimulationCaseResult", "SimulationReport",
+    "CanaryReport", "DecisionSnapshot",
     "IdentityError", "IdentityProvider", "IdentityVerifier",
     "SignedTestIdentityProvider", "VerifiedIdentity",
     "SERVICE_SCHEMA_VERSION", "DecisionRequest", "GovernanceService",
@@ -119,5 +139,5 @@ __all__ = [
     "TelemetryCollector", "InMemoryTelemetrySink", "JsonlTelemetrySink", "RedactionPolicy",
     "DECISION_EVALUATED", "DECISION_REPLAYED", "EXECUTION_COMPLETED",
     "APPROVAL_REQUESTED", "APPROVAL_VOTED", "APPROVAL_RESUMED", "APPROVAL_EXPIRED",
-    "RECOVERY_FAILURE",
+    "RECOVERY_FAILURE", "POLICY_LIFECYCLE",
 ]

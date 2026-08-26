@@ -2,7 +2,7 @@
 
 **Project:** Computational Governance for Autonomous Systems
 **Current release:** v0.3.0
-**Current state:** Phase 3 complete; M22–M26 complete; Phase 4 in progress
+**Current state:** Phase 4 complete at the reference-library boundary; durable service integration issue #29 remains before a production-kernel gate
 **Roadmap date:** 2026-08-14
 
 ## North-star direction
@@ -140,6 +140,12 @@ query examples show decision latency, blocks, escalations, approvals, failures,
 and recovery events; telemetry schemas are documented and tested.
 
 ### M27 — Policy lifecycle and controlled rollout
+
+**Status: complete at the reference-library boundary.** The lifecycle manager
+now provides auditable draft, validation, simulation, quorum approval, canary,
+promotion, rollback, ownership, and expiry transitions. The process-local
+boundary is intentional; durable service integration remains tracked in issue
+#29.
 
 Implement the operational policy workflow:
 

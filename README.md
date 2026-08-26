@@ -5,7 +5,9 @@
 A formal model, a reference implementation, and a runtime-agnostic benchmark for deciding whether an autonomous agent's intended action is permitted **before it executes** — accounting for delegated authority, human escalation, revocation, and runtime context change.
 
 The theory is frozen at **Foundations v1**. The reference implementation's
-v0.3 release completes milestones M1–M21; Phase 4 now completes M22–M26.
+v0.3 release completes milestones M1–M21; the reference implementation now
+completes Phase 4 milestones M22–M27. Durable service integration remains the
+production-kernel follow-up tracked in GitHub issue #29.
 GovernanceBench v0.2
 remains hand-authored so its labels remain auditable. Phase 3 adds
 implementation-independent conformance, durable recovery, model-based
@@ -75,6 +77,7 @@ docs/              GitHub Pages site
 | M24 | Versioned service API and Python SDK | ✅ |
 | M25 | Transactional durable storage | ✅ |
 | M26 | Observability and decision telemetry | ✅ |
+| M27 | Policy lifecycle and controlled rollout | ✅ |
 
 ## Quickstart
 
