@@ -20,6 +20,10 @@
 - Hardened M27 review findings by binding canaries to manager-recorded evidence,
   enforcing distinct production roles, activating CLI baselines, and tracking
   supersession and expiry per environment.
+- Added M28 deterministic adversarial assurance with seeded property traces,
+  bounded malformed-input fuzzing, selected mutation detection, clock/expiry
+  boundary checks, SQLite crash injection, reproducible JSON evidence, and CI
+  validation.
 
 ## 0.3.0 — 2026-08-09
 

@@ -1,0 +1,33 @@
+{
+  "category_counts": {
+    "clock_skew": 6,
+    "crash_injection": 3,
+    "fuzz": 32,
+    "mutation": 4,
+    "property": 256
+  },
+  "category_passed": {
+    "clock_skew": 6,
+    "crash_injection": 3,
+    "fuzz": 32,
+    "mutation": 4,
+    "property": 256
+  },
+  "checks": 301,
+  "exact": true,
+  "failed": 0,
+  "failures": [],
+  "fuzz_cases": 32,
+  "milestone": "M28",
+  "mutation_detected": true,
+  "passed": 301,
+  "property_traces": 128,
+  "scope": [
+    "seeded property traces",
+    "bounded malformed-input fuzz corpus",
+    "selected mutation operators",
+    "clock and expiry boundaries",
+    "SQLite transaction crash injection"
+  ],
+  "seed": 20260826
+}

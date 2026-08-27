@@ -2,7 +2,7 @@
 
 **Project:** Computational Governance for Autonomous Systems
 **Current release:** v0.3.0
-**Current state:** Phase 4 complete at the reference-library boundary; durable service integration issue #29 remains before a production-kernel gate
+**Current state:** Phase 4 complete at the reference-library boundary; M28 is complete and Phase 5 is in progress; durable service integration issue #29 remains before a production-kernel gate
 **Roadmap date:** 2026-08-14
 
 ## North-star direction
@@ -171,6 +171,14 @@ deployment; production policy changes require the configured quorum.
   policy downgrade, approval collusion, confused deputy, and recovery failures
 - M31: independent security review
 - M32: reproducibility package, dataset documentation, and research release
+
+### M28 — Adversarial assurance and fault injection
+
+**Status: complete at the bounded reference-library boundary.** Seeded property
+traces, malformed-input fuzzing, selected mutation checks, clock/expiry
+boundaries, and SQLite crash injection produce machine-readable evidence under
+the CI runtime budget. This does not claim exhaustive fuzzing or formal
+verification.
 
 The goal is evidence that the system is safe under adversarial conditions, not
 just evidence that the happy path works.

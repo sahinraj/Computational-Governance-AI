@@ -78,6 +78,7 @@ docs/              GitHub Pages site
 | M25 | Transactional durable storage | ✅ |
 | M26 | Observability and decision telemetry | ✅ |
 | M27 | Policy lifecycle and controlled rollout | ✅ |
+| M28 | Adversarial assurance and fault injection | ✅ |
 
 ## Quickstart
 

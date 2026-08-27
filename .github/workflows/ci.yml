@@ -31,6 +31,8 @@ jobs:
         run: python -m conformance.runner --check
       - name: Validate Phase 3 assurance
         run: python -m evaluation.model_assurance --check --traces 1000
+      - name: Validate M28 adversarial assurance
+        run: python -m evaluation.m28_assurance --check --property-traces 128 --fuzz-cases 32
       - name: Validate release CLI
         run: python -m governance validate-policy examples/phase3-policy.law --role ReleaseManager --role SecurityLead --role FinanceLead
       - name: Validate CLI conformance
