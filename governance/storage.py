@@ -158,6 +158,42 @@ class Repository(Protocol):
     def load_state(self, kind: str, key: str) -> DurableRecord:
         """Read one state record or raise StoreError."""
 
+    def begin_idempotency(
+        self, scope: str, key: str, request_hash: str
+    ) -> DurableIdempotencyRecord:
+        """Reserve a request key or return its durable result."""
+
+    def complete_idempotency(
+        self,
+        scope: str,
+        key: str,
+        request_hash: str,
+        *,
+        response_status: int,
+        response: Mapping[str, Any],
+    ) -> DurableIdempotencyRecord:
+        """Commit a reserved request result exactly once."""
+
+    def load_idempotency(self, scope: str, key: str) -> DurableIdempotencyRecord:
+        """Read a request reservation or raise StoreError."""
+
+    def claim_execution(self, scope: str, key: str, claim_id: str) -> ExecutionClaim:
+        """Acquire or inspect an external-operation execution claim."""
+
+    def complete_execution(
+        self,
+        scope: str,
+        key: str,
+        claim_id: str,
+        *,
+        status: str,
+        outcome: Optional[Mapping[str, Any]] = None,
+    ) -> ExecutionClaim:
+        """Commit an immutable execution outcome."""
+
+    def load_execution(self, scope: str, key: str) -> ExecutionClaim:
+        """Read an execution claim or raise StoreError."""
+
 
 class SQLiteGovernanceStore:
     """Single-region transactional repository backed by SQLite.
@@ -608,6 +644,31 @@ class SQLiteGovernanceStore:
             return ExecutionClaim(scope, key, claim_id, "claimed", acquired=True)
 
         return self._transaction(operation)
+
+    def load_execution(self, scope: str, key: str) -> ExecutionClaim:
+        """Read an execution claim without acquiring a new one."""
+        if not all(isinstance(value, str) and value for value in (scope, key)):
+            raise StoreError("execution scope and key are required")
+        with self._lock:
+            try:
+                row = self._connection.execute(
+                    "SELECT claim_id,status,outcome_json FROM execution_claims "
+                    "WHERE scope=? AND key=?",
+                    (scope, key),
+                ).fetchone()
+            except sqlite3.Error as exc:
+                raise StoreError(f"could not load execution claim {scope}/{key}: {exc}") from exc
+        if row is None:
+            raise StoreError(f"unknown execution claim {scope}/{key}")
+        try:
+            outcome = None if row["outcome_json"] is None else json.loads(row["outcome_json"])
+        except (TypeError, json.JSONDecodeError) as exc:
+            raise StoreError(f"corrupt execution claim {scope}/{key}") from exc
+        if outcome is not None and not isinstance(outcome, dict):
+            raise StoreError(f"execution claim {scope}/{key} outcome is not an object")
+        return ExecutionClaim(
+            scope, key, row["claim_id"], row["status"], outcome, acquired=False
+        )
 
     def complete_execution(
         self,

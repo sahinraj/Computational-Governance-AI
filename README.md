@@ -6,8 +6,9 @@ A formal model, a reference implementation, and a runtime-agnostic benchmark for
 
 The theory is frozen at **Foundations v1**. The reference implementation's
 v0.3 release completes milestones M1–M21; the reference implementation now
-completes Phase 4 milestones M22–M27. Durable service integration remains the
-production-kernel follow-up tracked in GitHub issue #29.
+completes Phase 4 milestones M22–M27. Durable service integration is available
+through the opt-in `DurableGovernanceService`, with its single-region boundary
+and reconciliation rules kept explicit.
 GovernanceBench v0.2
 remains hand-authored so its labels remain auditable. Phase 3 adds
 implementation-independent conformance, durable recovery, model-based

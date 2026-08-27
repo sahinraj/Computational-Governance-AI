@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Added the opt-in `DurableGovernanceService` integration for M24/M25,
+  including restart-safe idempotency, durable approval continuation,
+  cross-worker execution claims, and explicit uncertain-outcome handling.
+- Added issue #29 acceptance coverage for restart, concurrent ownership, approval
+  recovery, credential exclusion, and handler-failure recovery.
+- Hardened review paths with scoped execution claims, explicit orphan-claim
+  reconciliation, and retry-safe durable-commit recovery.
+
 - Hardened secure approval workflows so caller-constructed identities cannot
   approve actions; authenticated denials now retain identity provenance.
 - Added the M24 versioned HTTP/JSON service boundary, process-local

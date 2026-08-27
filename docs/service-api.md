@@ -3,7 +3,8 @@
 M24 exposes the governance engine through a small versioned HTTP/JSON boundary
 and a transport-independent Python client. The reference implementation uses
 only the Python standard library and is intended for local or single-process
-deployments. Durable state and crash recovery are M25 work.
+deployments. The opt-in `DurableGovernanceService` adapter connects the same
+contract to the M25 transactional repository for a single-region deployment.
 
 ## Design boundary
 
@@ -17,8 +18,9 @@ The service clock is authoritative. Client-provided timestamps are not accepted
 in decision requests. A transport timeout does not cancel a running operation;
 retry with the same idempotency key. The process-local service serializes
 requests while an operation is running, so a retry receives the original
-outcome instead of executing the operation again. Crash durability is deferred
-to M25.
+outcome instead of executing the operation again. The durable adapter adds
+transactional reservations across workers, approval snapshots across restart,
+and execution claims for external-operation recovery.
 
 ## Request schema
 
@@ -90,6 +92,9 @@ roles.
 | `approval_not_found` | Approval state is unavailable or not resumable. |
 | `approval_conflict` | Vote, expiry, binding, or replay rule rejected the operation. |
 | `operation_failed` | The governed operation failed; retry with the same key only. |
+| `operation_uncertain` | An external operation may have started; reconcile before retrying. |
+| `request_in_progress` | Another worker owns the durable request reservation. |
+| `durable_state_unavailable` | The durable repository could not be read or committed. |
 | `internal_error` | The service failed closed before execution. |
 
 ## Python SDK
@@ -120,7 +125,26 @@ is uncertain and never generate a new key for a retry of the same side effect.
 ## Production boundary
 
 This milestone is a narrow service contract, not a hosted control plane. The
-reference service keeps approvals and idempotency in memory, does not provide
-multi-process coordination, and does not replace TLS termination, credential
-issuance, or operational authentication. M25 owns transactional persistence,
-backup/restore, concurrent-update handling, and crash recovery.
+reference `GovernanceService` keeps approvals and idempotency in memory. Use
+`DurableGovernanceService` with `SQLiteGovernanceStore` when restart and
+multi-worker coordination are required:
+
+```python
+from governance import DurableGovernanceService, SQLiteGovernanceStore
+
+service = DurableGovernanceService(
+    runtime,
+    repository=SQLiteGovernanceStore("governance.db"),
+    handlers=handlers,
+    actor_registry=actor_registry,
+)
+```
+
+The adapter does not claim exactly-once delivery of arbitrary external side
+effects. A handler failure after an execution claim is persisted as
+`operation_uncertain`; operators must reconcile that claim before retrying.
+For a worker that stops with a `claimed` record, call the explicit
+`service.reconcile_execution(key)` operator transition after checking the
+external system. Terminal execution results are immutable.
+The durable reference is single-region and does not replace TLS termination,
+credential issuance, encryption/key management, or operational authentication.

@@ -22,8 +22,9 @@ from .approval import ApprovalError, ApprovalManager, ApprovalRequest
 from .audit import fingerprint, policy_fingerprint
 from .identity import IdentityError, VerifiedIdentity
 from .interceptor import InterceptionResult, InterceptorMode
-from .model import Action, Actor, Context, DecisionKind
+from .model import Action, Actor, Capability, Context, DecisionKind
 from .runtime import RuntimeAdapter, ToolCall
+from .storage import ConcurrencyError, Repository, StoreError
 from .telemetry import (
     APPROVAL_EXPIRED,
     APPROVAL_REQUESTED,
@@ -38,6 +39,8 @@ from .telemetry import (
 
 
 SERVICE_SCHEMA_VERSION = "1.0"
+DURABLE_SERVICE_SCHEMA_VERSION = "1.0"
+_DURABLE_APPROVAL_KIND = "service_approvals"
 
 
 class ServiceError(ValueError):
@@ -181,6 +184,10 @@ class _PendingApproval:
     decision_id: str
 
 
+class _DurableOperationError(RuntimeError):
+    """Internal marker for a handler outcome that cannot be safely retried."""
+
+
 class GovernanceService:
     """Process-local service façade with fail-closed HTTP semantics."""
 
@@ -194,6 +201,8 @@ class GovernanceService:
         telemetry: Optional[TelemetryCollector] = None,
         policy_version: Optional[str] = None,
         clock: Callable[[], float] = time.time,
+        repository: Optional[Repository] = None,
+        durable_scope: str = "service",
     ):
         if runtime.interceptor.mode is not InterceptorMode.ENFORCE:
             raise ServiceError("invalid_configuration", "service requires enforce mode")
@@ -228,10 +237,19 @@ class GovernanceService:
         self.telemetry = telemetry or TelemetryCollector()
         self.policy_version = policy_version
         self.clock = clock
+        if repository is not None and (
+            not isinstance(durable_scope, str) or not durable_scope
+        ):
+            raise ServiceError("invalid_configuration", "durable scope must be non-empty")
+        self.repository = repository
+        self.durable_scope = durable_scope
         self._lock = threading.RLock()
         self._idempotency: dict[str, tuple[str, ServiceResponse]] = {}
         self._pending: dict[str, _PendingApproval] = {}
         self._expired_approvals: set[str] = set()
+        self._durable_state_revision: Optional[int] = None
+        self._durable_uncommitted: dict[tuple[str, str], tuple[str, ServiceResponse]] = {}
+        self._restore_durable_state()
 
     @staticmethod
     def _error(error: ServiceError) -> ServiceResponse:
@@ -360,9 +378,314 @@ class GovernanceService:
         key: str,
         request_value: Mapping[str, Any],
         response: ServiceResponse,
+        *,
+        scope: str = "decisions",
     ) -> ServiceResponse:
-        self._idempotency[key] = (fingerprint(request_value), response)
+        request_hash = fingerprint(request_value)
+        try:
+            self._complete_durable(scope, key, request_value, response)
+        except ServiceError:
+            if self.repository is not None:
+                self._durable_uncommitted[(scope, key)] = (request_hash, response)
+            raise
+        self._idempotency[key] = (request_hash, response)
+        self._durable_uncommitted.pop((scope, key), None)
         return response
+
+    def _durable_request_scope(self, scope: str) -> str:
+        return f"{self.durable_scope}:requests:{scope}"
+
+    def _durable_execution_scope(self, kind: str) -> str:
+        return f"{self.durable_scope}:execution:{kind}"
+
+    def _durable_claim_id(self, kind: str, claim_id: str) -> str:
+        return f"{self.durable_scope}:{kind}:{claim_id}"
+
+    def _durable_state_payload(self) -> dict[str, Any]:
+        pending = {}
+        for request_id, item in self._pending.items():
+            request = item.request.to_dict()
+            # Credentials are deliberately excluded from durable records. An
+            # approver authenticates again when the request is resumed.
+            request.pop("credential", None)
+            pending[request_id] = {
+                "request": request,
+                "action": {
+                    "identity_reference": item.action.identity_reference,
+                    "identity_roles": list(item.action.identity_roles),
+                },
+                "context": {
+                    "budget_used": item.context.budget_used,
+                    "prior_approvals": list(item.context.prior_approvals),
+                    "now": item.context.now,
+                },
+                "correlation_id": item.correlation_id,
+                "decision_id": item.decision_id,
+            }
+        return {
+            "schema_version": DURABLE_SERVICE_SCHEMA_VERSION,
+            "approval_manager": self.approval_manager.snapshot()
+            if self.approval_manager is not None
+            else None,
+            "pending": pending,
+        }
+
+    def _restore_durable_state(self) -> None:
+        if self.repository is None:
+            return
+        try:
+            record = self.repository.load_state(_DURABLE_APPROVAL_KIND, self.durable_scope)
+        except StoreError as exc:
+            if str(exc).startswith("unknown durable state"):
+                return
+            raise ServiceError(
+                "durable_state_unavailable",
+                "approval state could not be loaded",
+                HTTPStatus.SERVICE_UNAVAILABLE,
+            ) from exc
+        payload = record.payload
+        if payload.get("schema_version") != DURABLE_SERVICE_SCHEMA_VERSION:
+            raise ServiceError(
+                "durable_state_incompatible",
+                "durable service approval state has an unsupported version",
+                HTTPStatus.INTERNAL_SERVER_ERROR,
+            )
+        snapshot = payload.get("approval_manager")
+        if snapshot is not None:
+            try:
+                restored = ApprovalManager.from_snapshot(snapshot)
+            except ApprovalError as exc:
+                raise ServiceError(
+                    "durable_state_corrupt",
+                    "durable approval state could not be restored",
+                    HTTPStatus.INTERNAL_SERVER_ERROR,
+                ) from exc
+            self.approval_manager = restored
+            self.runtime.interceptor.approval_manager = restored
+        pending = payload.get("pending", {})
+        if not isinstance(pending, dict):
+            raise ServiceError(
+                "durable_state_corrupt",
+                "durable pending approval state is invalid",
+                HTTPStatus.INTERNAL_SERVER_ERROR,
+            )
+        for request_id, item in pending.items():
+            try:
+                request = DecisionRequest.from_dict(item["request"])
+                action_value = item["action"]
+                action = Action(
+                    request.actor,
+                    Capability(request.capability),
+                    copy.deepcopy(dict(request.params)),
+                    identity_reference=action_value.get("identity_reference"),
+                    identity_roles=tuple(action_value.get("identity_roles", ())),
+                )
+                context_value = item["context"]
+                context = Context(
+                    budget_used=float(context_value["budget_used"]),
+                    prior_approvals=tuple(context_value.get("prior_approvals", ())),
+                    now=float(context_value["now"]),
+                )
+                handler = self.handlers.get(request.capability)
+                if handler is None:
+                    continue
+                self._pending[str(request_id)] = _PendingApproval(
+                    request=request,
+                    action=action,
+                    context=context,
+                    handler=handler,
+                    correlation_id=str(item["correlation_id"]),
+                    decision_id=str(item["decision_id"]),
+                )
+            except (KeyError, TypeError, ValueError) as exc:
+                raise ServiceError(
+                    "durable_state_corrupt",
+                    "durable pending approval state is invalid",
+                    HTTPStatus.INTERNAL_SERVER_ERROR,
+                ) from exc
+        self._durable_state_revision = record.revision
+
+    def _persist_durable_state(self) -> None:
+        if self.repository is None:
+            return
+        payload = self._durable_state_payload()
+        try:
+            if self._durable_state_revision is None:
+                record = self.repository.save_state(
+                    _DURABLE_APPROVAL_KIND, self.durable_scope, payload
+                )
+            else:
+                record = self.repository.save_state(
+                    _DURABLE_APPROVAL_KIND,
+                    self.durable_scope,
+                    payload,
+                    expected_revision=self._durable_state_revision,
+                )
+        except ConcurrencyError as exc:
+            raise ServiceError(
+                "durable_state_conflict",
+                "approval state changed concurrently; retry with the same request key",
+                HTTPStatus.CONFLICT,
+            ) from exc
+        except StoreError as exc:
+            raise ServiceError(
+                "durable_state_unavailable",
+                "approval state could not be committed",
+                HTTPStatus.SERVICE_UNAVAILABLE,
+            ) from exc
+        self._durable_state_revision = record.revision
+
+    def _reserve_durable(
+        self, scope: str, key: str, request_value: Mapping[str, Any]
+    ) -> Optional[ServiceResponse]:
+        if self.repository is None:
+            return None
+        request_hash = fingerprint(request_value)
+        pending = self._durable_uncommitted.get((scope, key))
+        if pending is not None:
+            if pending[0] != request_hash:
+                raise ServiceError(
+                    "idempotency_key_conflict",
+                    "idempotency key was already used for a different request",
+                    HTTPStatus.CONFLICT,
+                )
+            self._complete_durable(scope, key, request_value, pending[1])
+            self._durable_uncommitted.pop((scope, key), None)
+            return pending[1]
+        try:
+            record = self.repository.begin_idempotency(
+                self._durable_request_scope(scope), key, request_hash
+            )
+        except ConcurrencyError as exc:
+            raise ServiceError(
+                "idempotency_key_conflict",
+                "idempotency key was already used for a different request",
+                HTTPStatus.CONFLICT,
+            ) from exc
+        except StoreError as exc:
+            raise ServiceError(
+                "durable_state_unavailable",
+                "request durability is unavailable",
+                HTTPStatus.SERVICE_UNAVAILABLE,
+            ) from exc
+        if record.status == "complete":
+            if record.response_status is None or record.response is None:
+                raise ServiceError(
+                    "durable_state_corrupt",
+                    "durable idempotency result is incomplete",
+                    HTTPStatus.INTERNAL_SERVER_ERROR,
+                )
+            return ServiceResponse(int(record.response_status), dict(record.response))
+        if record.acquired:
+            return None
+        if scope == "decisions":
+            try:
+                claim = self.repository.load_execution(
+                    self._durable_execution_scope("decision"), key
+                )
+            except StoreError:
+                raise ServiceError(
+                    "request_in_progress",
+                    "another worker owns this request reservation",
+                    HTTPStatus.CONFLICT,
+                )
+            if claim.status == "claimed":
+                raise ServiceError(
+                    "request_in_progress",
+                    "another worker owns this request reservation",
+                    HTTPStatus.CONFLICT,
+                )
+            raise ServiceError(
+                "operation_uncertain",
+                "the operation outcome was not committed with its response",
+                HTTPStatus.INTERNAL_SERVER_ERROR,
+            )
+        raise ServiceError(
+            "request_in_progress",
+            "another worker owns this request reservation",
+            HTTPStatus.CONFLICT,
+        )
+
+    def _complete_durable(
+        self,
+        scope: str,
+        key: str,
+        request_value: Mapping[str, Any],
+        response: ServiceResponse,
+    ) -> None:
+        if self.repository is None:
+            return
+        try:
+            self.repository.complete_idempotency(
+                self._durable_request_scope(scope),
+                key,
+                fingerprint(request_value),
+                response_status=response.status,
+                response=response.body,
+            )
+        except ConcurrencyError as exc:
+            raise ServiceError(
+                "durable_state_conflict",
+                "request result was concurrently committed",
+                HTTPStatus.CONFLICT,
+            ) from exc
+        except StoreError as exc:
+            raise ServiceError(
+                "durable_state_unavailable",
+                "request result could not be committed",
+                HTTPStatus.SERVICE_UNAVAILABLE,
+            ) from exc
+
+    def _durable_operation(
+        self,
+        key: str,
+        claim_id: str,
+        operation: Callable[[], Any],
+        *,
+        execution_kind: str = "decision",
+    ) -> Any:
+        if self.repository is None:
+            return operation()
+        durable_claim_id = self._durable_claim_id(execution_kind, claim_id)
+        try:
+            claim = self.repository.claim_execution(
+                self._durable_execution_scope(execution_kind), key, durable_claim_id
+            )
+        except ConcurrencyError as exc:
+            raise _DurableOperationError("execution claim is owned by another worker") from exc
+        except StoreError as exc:
+            raise _DurableOperationError("execution claim could not be acquired") from exc
+        if not claim.acquired:
+            raise _DurableOperationError("execution outcome was already claimed")
+        try:
+            value = operation()
+        except Exception as exc:
+            try:
+                self.repository.complete_execution(
+                    self._durable_execution_scope(execution_kind),
+                    key,
+                    durable_claim_id,
+                    status="unknown",
+                    outcome={"reason": "handler raised after execution claim"},
+                )
+            except StoreError:
+                pass
+            raise _DurableOperationError(
+                "external operation outcome is unknown after handler failure"
+            ) from exc
+        try:
+            self.repository.complete_execution(
+                self._durable_execution_scope(execution_kind),
+                key,
+                durable_claim_id,
+                status="succeeded",
+                outcome={"status": "succeeded"},
+            )
+        except StoreError as exc:
+            raise _DurableOperationError(
+                "external operation succeeded but its outcome could not be committed"
+            ) from exc
+        return value
 
     def _authenticated_identity(
         self,
@@ -411,6 +734,23 @@ class GovernanceService:
                 attributes={"request_id": request.idempotency_key},
             )
             return cached
+        durable_cached = self._reserve_durable(
+            "decisions", request.idempotency_key, request_value
+        )
+        if durable_cached is not None:
+            self._emit_decision(
+                event_name=DECISION_REPLAYED,
+                correlation_id=correlation_id,
+                decision_id=decision_id,
+                outcome=durable_cached.body.get("decision", {}).get(
+                    "kind", durable_cached.body.get("error", {}).get("code")
+                ),
+                attributes={"request_id": request.idempotency_key, "durable": True},
+            )
+            self._idempotency[request.idempotency_key] = (
+                fingerprint(request_value), durable_cached
+            )
+            return durable_cached
         handler = self.handlers.get(request.capability)
         if handler is None:
             response = self._with_observability_ids(
@@ -454,7 +794,11 @@ class GovernanceService:
             result = self.runtime.invoke(
                 request.tool_call(),
                 context,
-                lambda: handler(copy.deepcopy(dict(request.params))),
+                lambda: self._durable_operation(
+                    request.idempotency_key,
+                    decision_id,
+                    lambda: handler(copy.deepcopy(dict(request.params))),
+                ),
             )
             response = self._result_response(
                 request.idempotency_key,
@@ -464,6 +808,14 @@ class GovernanceService:
             )
         except ServiceError as exc:
             response = self._error(exc)
+        except _DurableOperationError:
+            response = self._error(
+                ServiceError(
+                    "operation_uncertain",
+                    "the external operation may have started; reconciliation is required",
+                    HTTPStatus.INTERNAL_SERVER_ERROR,
+                )
+            )
         except Exception:
             # An operation may have started before raising. Cache the failure
             # under the same key so an uncertain retry cannot execute twice.
@@ -498,6 +850,7 @@ class GovernanceService:
                 correlation_id=correlation_id,
                 decision_id=decision_id,
             )
+            self._persist_durable_state()
             self._emit_decision(
                 event_name=APPROVAL_REQUESTED,
                 correlation_id=correlation_id,
@@ -558,6 +911,7 @@ class GovernanceService:
                 approval_reference=request_id,
                 outcome="expired",
             )
+            self._persist_durable_state()
         return ServiceResponse(
             status=HTTPStatus.OK,
             body={
@@ -589,6 +943,10 @@ class GovernanceService:
         cached = self._idempotent(key, request_value)
         if cached is not None:
             return cached
+        durable_cached = self._reserve_durable("votes", key, request_value)
+        if durable_cached is not None:
+            self._idempotency[key] = (fingerprint(request_value), durable_cached)
+            return durable_cached
         pending = self._pending.get(request_id)
         if pending is None:
             raise ServiceError("approval_not_found", "approval request is not resumable", HTTPStatus.NOT_FOUND)
@@ -637,7 +995,8 @@ class GovernanceService:
             ),
             attributes={"role": role, "vote": decision},
         )
-        return self._store_idempotent(key, request_value, response)
+        self._persist_durable_state()
+        return self._store_idempotent(key, request_value, response, scope="votes")
 
     def _resume(self, request_id: str, value: Mapping[str, Any]) -> ServiceResponse:
         if self.approval_manager is None:
@@ -653,6 +1012,10 @@ class GovernanceService:
         cached = self._idempotent(key, request_value)
         if cached is not None:
             return cached
+        durable_cached = self._reserve_durable("resumes", key, request_value)
+        if durable_cached is not None:
+            self._idempotency[key] = (fingerprint(request_value), durable_cached)
+            return durable_cached
         pending = self._pending.get(request_id)
         if pending is None:
             raise ServiceError("approval_not_found", "approval request is not resumable", HTTPStatus.NOT_FOUND)
@@ -673,7 +1036,12 @@ class GovernanceService:
                 request_id,
                 pending.action,
                 pending.context,
-                lambda: pending.handler(copy.deepcopy(dict(pending.request.params))),
+                lambda: self._durable_operation(
+                    request_id,
+                    pending.decision_id,
+                    lambda: pending.handler(copy.deepcopy(dict(pending.request.params))),
+                    execution_kind="approval",
+                ),
                 now=float(self.clock()),
             )
             response = self._result_response(
@@ -681,6 +1049,14 @@ class GovernanceService:
                 result,
                 correlation_id=pending.correlation_id,
                 decision_id=pending.decision_id,
+            )
+        except _DurableOperationError:
+            response = self._error(
+                ServiceError(
+                    "operation_uncertain",
+                    "the external operation may have started; reconciliation is required",
+                    HTTPStatus.INTERNAL_SERVER_ERROR,
+                )
             )
         except Exception:
             response = self._error(
@@ -710,7 +1086,8 @@ class GovernanceService:
                 identity_reference=identity.identity_reference,
                 outcome="succeeded" if response.body.get("executed") else "not_executed",
             )
-        return self._store_idempotent(key, request_value, response)
+        self._persist_durable_state()
+        return self._store_idempotent(key, request_value, response, scope="resumes")
 
     def record_recovery_failure(
         self,
@@ -727,6 +1104,47 @@ class GovernanceService:
             outcome="recovery_failed",
             failure_reason=reason,
         )
+
+    def reconcile_execution(
+        self,
+        key: str,
+        *,
+        execution_kind: str = "decision",
+        reason: str = "operator reconciliation after worker restart",
+    ):
+        """Finalize an orphaned claim as unknown without changing a terminal result.
+
+        This is an operator-controlled transition. It must only be used after
+        checking the external system because the repository cannot determine
+        whether an arbitrary side effect completed before a worker stopped.
+        """
+        if self.repository is None:
+            raise ServiceError(
+                "durable_state_unavailable",
+                "execution reconciliation requires a durable repository",
+                HTTPStatus.SERVICE_UNAVAILABLE,
+            )
+        if execution_kind not in {"decision", "approval"}:
+            raise ServiceError("invalid_request", "unknown execution claim kind")
+        try:
+            claim = self.repository.load_execution(
+                self._durable_execution_scope(execution_kind), key
+            )
+            if claim.status == "claimed":
+                claim = self.repository.complete_execution(
+                    self._durable_execution_scope(execution_kind),
+                    key,
+                    claim.claim_id,
+                    status="unknown",
+                    outcome={"reason": reason},
+                )
+            return claim
+        except StoreError as exc:
+            raise ServiceError(
+                "durable_state_unavailable",
+                "execution claim could not be reconciled",
+                HTTPStatus.SERVICE_UNAVAILABLE,
+            ) from exc
 
     def handle(
         self,
@@ -761,6 +1179,30 @@ class GovernanceService:
                         HTTPStatus.INTERNAL_SERVER_ERROR,
                     )
                 )
+
+
+class DurableGovernanceService(GovernanceService):
+    """Opt-in service adapter backed by a transactional ``Repository``.
+
+    The default :class:`GovernanceService` remains process-local. This adapter
+    adds durable request reservations, approval snapshots, and external
+    execution claims for a single-region repository such as SQLite.
+    """
+
+    def __init__(
+        self,
+        runtime: RuntimeAdapter,
+        *,
+        repository: Repository,
+        durable_scope: str = "service",
+        **kwargs: Any,
+    ):
+        super().__init__(
+            runtime,
+            repository=repository,
+            durable_scope=durable_scope,
+            **kwargs,
+        )
 
 
 class _GovernanceHandler(BaseHTTPRequestHandler):
@@ -834,10 +1276,12 @@ def serve_http(
 
 __all__ = [
     "SERVICE_SCHEMA_VERSION",
+    "DURABLE_SERVICE_SCHEMA_VERSION",
     "ServiceError",
     "ServiceResponse",
     "DecisionRequest",
     "GovernanceService",
+    "DurableGovernanceService",
     "GovernanceHTTPServer",
     "create_http_server",
     "serve_http",
