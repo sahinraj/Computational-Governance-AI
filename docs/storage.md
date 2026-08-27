@@ -26,10 +26,17 @@ storage, managed backups, least-privilege database access, and TLS where the
 database is remote. This project does not implement custom encryption, key
 management, or database credentials.
 
-The M24 service remains process-local until a later integration increment wires
-its pending-operation and idempotency paths to these repositories. M25 makes
-the transactional storage contract and recovery behavior available without
-changing existing library APIs.
+The default M24 service remains process-local for compatibility. The opt-in
+`DurableGovernanceService` adapter wires pending approvals, idempotency records,
+and execution claims to this repository. It preserves the service API while
+making restart and multi-worker behavior explicit for the single-region
+reference deployment.
+
+Durable service behavior is fail-closed when the repository is unavailable.
+Concurrent non-owners receive `request_in_progress` and never invoke a handler.
+An execution claim that cannot be paired with a committed response is exposed
+as `operation_uncertain`; the adapter never invents an exactly-once outcome for
+an external side effect.
 
 ## Recovery and retention
 

@@ -2,7 +2,9 @@
 
 **Project:** Computational Governance for Autonomous Systems
 **Current release:** v0.3.0
-**Current state:** Phase 4 complete at the reference-library boundary; M28 is complete and Phase 5 is in progress; durable service integration issue #29 remains before a production-kernel gate
+**Current state:** Phase 4 and the M24/M25 durable service integration
+follow-up are complete at the reference-library boundary; M28 is complete and
+Phase 5 is in progress.
 **Roadmap date:** 2026-08-14
 
 ## North-star direction
@@ -143,9 +145,9 @@ and recovery events; telemetry schemas are documented and tested.
 
 **Status: complete at the reference-library boundary.** The lifecycle manager
 now provides auditable draft, validation, simulation, quorum approval, canary,
-promotion, rollback, ownership, and expiry transitions. The process-local
-boundary is intentional; durable service integration remains tracked in issue
-#29.
+promotion, rollback, ownership, and expiry transitions. The lifecycle manager
+is process-local; durable service integration is provided by the opt-in adapter
+described below.
 
 Implement the operational policy workflow:
 
@@ -182,6 +184,20 @@ verification.
 
 The goal is evidence that the system is safe under adversarial conditions, not
 just evidence that the happy path works.
+
+## M24/M25 follow-up — Durable service integration
+
+**Status: complete at the reference-library boundary.** The opt-in
+`DurableGovernanceService` now connects the M24 service contract to the M25
+transactional repository. Decision idempotency, approval snapshots, vote and
+resume replay, and external-operation execution claims survive restart and
+coordinate across SQLite-backed workers. A handler failure after an execution
+claim is recorded as `operation_uncertain`; arbitrary external side effects are
+not falsely advertised as exactly once.
+
+**Boundary:** This remains a single-region reference adapter. It does not
+implement multi-region consensus, credential storage, hosted control-plane
+operations, or automatic reconciliation of an external system.
 
 ## Phase 6 — One narrow production pilot
 
@@ -253,7 +269,7 @@ latency, auditability, and operator-acceptance targets.
 
 ## Immediate next action
 
-Begin M27 with policy lifecycle and controlled rollout. In parallel, wire the
-M24 service's pending approvals, idempotency records, and execution claims to
-the M25 repository boundary before the production-kernel gate; this integration
-is tracked in GitHub issue #29.
+Continue with Phase 5 assurance and security evidence. The M24/M25 durable
+service integration is complete at the reference boundary; the next production
+step is a narrow pilot with a real tool gateway, encrypted durable storage, and
+an operator-owned reconciliation process.

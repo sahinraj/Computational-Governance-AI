@@ -70,7 +70,9 @@ from .identity import (
 )
 from .service import (
     SERVICE_SCHEMA_VERSION,
+    DURABLE_SERVICE_SCHEMA_VERSION,
     DecisionRequest,
+    DurableGovernanceService,
     GovernanceHTTPServer,
     GovernanceService,
     ServiceError,
@@ -131,7 +133,8 @@ __all__ = [
     "CanaryReport", "DecisionSnapshot",
     "IdentityError", "IdentityProvider", "IdentityVerifier",
     "SignedTestIdentityProvider", "VerifiedIdentity",
-    "SERVICE_SCHEMA_VERSION", "DecisionRequest", "GovernanceService",
+    "SERVICE_SCHEMA_VERSION", "DURABLE_SERVICE_SCHEMA_VERSION", "DecisionRequest",
+    "GovernanceService", "DurableGovernanceService",
     "GovernanceHTTPServer", "ServiceError", "ServiceResponse",
     "create_http_server", "GovernanceClient", "HTTPTransport",
     "serve_http", "InProcessTransport", "ServiceClientError",
