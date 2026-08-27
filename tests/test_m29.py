@@ -36,7 +36,7 @@ def _credential(provider, *, subject="agent-1", now=100.0):
     return provider.issue(subject, ["release-operator"], now=now, ttl=60, key_id="key-v1")
 
 
-def _service(path, calls, *, provider, handler=None):
+def _service(path, calls, *, provider, handler=None, scope="service"):
     policy = compile_policy(
         "LAW-PAYMENT\n"
         "  capability: payment.send\n"
@@ -61,6 +61,7 @@ def _service(path, calls, *, provider, handler=None):
     return DurableGovernanceService(
         runtime,
         repository=SQLiteGovernanceStore(path),
+        durable_scope=scope,
         approval_manager=manager,
         actor_registry={
             "agent-1": Actor(
@@ -145,6 +146,25 @@ def test_concurrent_workers_have_one_execution_owner(tmp_path):
     second.repository.close()
 
 
+def test_durable_scope_isolates_request_and_execution_namespaces(tmp_path):
+    path = tmp_path / "scoped.db"
+    provider = _provider()
+    first_calls = []
+    second_calls = []
+    first = _service(path, first_calls, provider=provider, scope="payments")
+    second = _service(path, second_calls, provider=provider, scope="deployments")
+    request = _payment(provider, "shared-key")
+
+    first_response = GovernanceClient(InProcessTransport(first)).decide(request)
+    second_response = GovernanceClient(InProcessTransport(second)).decide(request)
+    assert first_response["executed"] is True
+    assert second_response["executed"] is True
+    assert first_calls == [{"amount": 10}]
+    assert second_calls == [{"amount": 10}]
+    first.repository.close()
+    second.repository.close()
+
+
 def test_approval_votes_and_resume_survive_restart_without_credentials_on_disk(tmp_path):
     path = tmp_path / "approval.db"
     provider = _provider()
@@ -205,7 +225,9 @@ def test_handler_failure_is_durable_unknown_and_never_retried(tmp_path):
     )
     assert response.status == 500
     assert response.body["error"]["code"] == "operation_uncertain"
-    claim = first.repository.load_execution("execution", "payment-unknown")
+    claim = first.repository.load_execution(
+        "service:execution:decision", "payment-unknown"
+    )
     assert claim.status == "unknown"
     first.repository.close()
 
@@ -219,3 +241,64 @@ def test_handler_failure_is_durable_unknown_and_never_retried(tmp_path):
     assert calls == [{"amount": 10}]
     assert second_calls == []
     second.repository.close()
+
+
+def test_orphaned_claim_has_explicit_operator_reconciliation_transition(tmp_path):
+    path = tmp_path / "orphan.db"
+    provider = _provider()
+    service = _service(path, [], provider=provider)
+    service.repository.begin_idempotency(
+        "service:requests:decisions", "orphan", "request-hash"
+    )
+    service.repository.claim_execution(
+        "service:execution:decision", "orphan", "claim-1"
+    )
+
+    reconciled = service.reconcile_execution("orphan", reason="worker restarted")
+    assert reconciled.status == "unknown"
+    assert service.repository.load_execution(
+        "service:execution:decision", "orphan"
+    ).status == "unknown"
+    service.repository.claim_execution(
+        "service:execution:decision", "terminal", "claim-2"
+    )
+    service.repository.complete_execution(
+        "service:execution:decision",
+        "terminal",
+        "claim-2",
+        status="succeeded",
+        outcome={"status": "succeeded"},
+    )
+    assert service.reconcile_execution("terminal").status == "succeeded"
+    service.repository.close()
+
+
+def test_failed_durable_commit_is_not_hidden_by_local_cache(tmp_path):
+    path = tmp_path / "commit-failure.db"
+    provider = _provider()
+    calls = []
+    commits = [0]
+
+    def fail_idempotency_commit(point):
+        if point == "before_commit":
+            commits[0] += 1
+            if commits[0] == 4:
+                raise RuntimeError("injected idempotency commit failure")
+
+    store = SQLiteGovernanceStore(path, failpoint=fail_idempotency_commit)
+    service = _service(path, calls, provider=provider)
+    # Use the injected store so the failure is placed on the final response
+    # commit, after the handler and execution claim have completed.
+    service.repository.close()
+    service.repository = store
+    request = _payment(provider, "commit-failure")
+    first = service.handle("POST", "/v1/decisions", request.to_dict())
+    assert first.status == 503
+    assert calls == [{"amount": 10}]
+
+    store._failpoint = None
+    replay = service.handle("POST", "/v1/decisions", request.to_dict())
+    assert replay.status == 200
+    assert replay.body["executed"] is True
+    assert calls == [{"amount": 10}]
+    store.close()

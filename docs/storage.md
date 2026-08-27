@@ -36,7 +36,10 @@ Durable service behavior is fail-closed when the repository is unavailable.
 Concurrent non-owners receive `request_in_progress` and never invoke a handler.
 An execution claim that cannot be paired with a committed response is exposed
 as `operation_uncertain`; the adapter never invents an exactly-once outcome for
-an external side effect.
+an external side effect. An orphaned `claimed` record can be moved to the
+terminal `unknown` state only through the explicit operator-controlled
+`DurableGovernanceService.reconcile_execution()` transition; terminal results
+cannot be overwritten.
 
 ## Recovery and retention
 

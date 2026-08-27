@@ -41,7 +41,6 @@ from .telemetry import (
 SERVICE_SCHEMA_VERSION = "1.0"
 DURABLE_SERVICE_SCHEMA_VERSION = "1.0"
 _DURABLE_APPROVAL_KIND = "service_approvals"
-_DURABLE_EXECUTION_SCOPE = "execution"
 
 
 class ServiceError(ValueError):
@@ -249,6 +248,7 @@ class GovernanceService:
         self._pending: dict[str, _PendingApproval] = {}
         self._expired_approvals: set[str] = set()
         self._durable_state_revision: Optional[int] = None
+        self._durable_uncommitted: dict[tuple[str, str], tuple[str, ServiceResponse]] = {}
         self._restore_durable_state()
 
     @staticmethod
@@ -381,9 +381,25 @@ class GovernanceService:
         *,
         scope: str = "decisions",
     ) -> ServiceResponse:
-        self._idempotency[key] = (fingerprint(request_value), response)
-        self._complete_durable(scope, key, request_value, response)
+        request_hash = fingerprint(request_value)
+        try:
+            self._complete_durable(scope, key, request_value, response)
+        except ServiceError:
+            if self.repository is not None:
+                self._durable_uncommitted[(scope, key)] = (request_hash, response)
+            raise
+        self._idempotency[key] = (request_hash, response)
+        self._durable_uncommitted.pop((scope, key), None)
         return response
+
+    def _durable_request_scope(self, scope: str) -> str:
+        return f"{self.durable_scope}:requests:{scope}"
+
+    def _durable_execution_scope(self, kind: str) -> str:
+        return f"{self.durable_scope}:execution:{kind}"
+
+    def _durable_claim_id(self, kind: str, claim_id: str) -> str:
+        return f"{self.durable_scope}:{kind}:{claim_id}"
 
     def _durable_state_payload(self) -> dict[str, Any]:
         pending = {}
@@ -525,8 +541,21 @@ class GovernanceService:
         if self.repository is None:
             return None
         request_hash = fingerprint(request_value)
+        pending = self._durable_uncommitted.get((scope, key))
+        if pending is not None:
+            if pending[0] != request_hash:
+                raise ServiceError(
+                    "idempotency_key_conflict",
+                    "idempotency key was already used for a different request",
+                    HTTPStatus.CONFLICT,
+                )
+            self._complete_durable(scope, key, request_value, pending[1])
+            self._durable_uncommitted.pop((scope, key), None)
+            return pending[1]
         try:
-            record = self.repository.begin_idempotency(scope, key, request_hash)
+            record = self.repository.begin_idempotency(
+                self._durable_request_scope(scope), key, request_hash
+            )
         except ConcurrencyError as exc:
             raise ServiceError(
                 "idempotency_key_conflict",
@@ -552,7 +581,7 @@ class GovernanceService:
         if scope == "decisions":
             try:
                 claim = self.repository.load_execution(
-                    _DURABLE_EXECUTION_SCOPE, key
+                    self._durable_execution_scope("decision"), key
                 )
             except StoreError:
                 raise ServiceError(
@@ -588,7 +617,7 @@ class GovernanceService:
             return
         try:
             self.repository.complete_idempotency(
-                scope,
+                self._durable_request_scope(scope),
                 key,
                 fingerprint(request_value),
                 response_status=response.status,
@@ -612,12 +641,15 @@ class GovernanceService:
         key: str,
         claim_id: str,
         operation: Callable[[], Any],
+        *,
+        execution_kind: str = "decision",
     ) -> Any:
         if self.repository is None:
             return operation()
+        durable_claim_id = self._durable_claim_id(execution_kind, claim_id)
         try:
             claim = self.repository.claim_execution(
-                _DURABLE_EXECUTION_SCOPE, key, claim_id
+                self._durable_execution_scope(execution_kind), key, durable_claim_id
             )
         except ConcurrencyError as exc:
             raise _DurableOperationError("execution claim is owned by another worker") from exc
@@ -630,9 +662,9 @@ class GovernanceService:
         except Exception as exc:
             try:
                 self.repository.complete_execution(
-                    _DURABLE_EXECUTION_SCOPE,
+                    self._durable_execution_scope(execution_kind),
                     key,
-                    claim_id,
+                    durable_claim_id,
                     status="unknown",
                     outcome={"reason": "handler raised after execution claim"},
                 )
@@ -643,9 +675,9 @@ class GovernanceService:
             ) from exc
         try:
             self.repository.complete_execution(
-                _DURABLE_EXECUTION_SCOPE,
+                self._durable_execution_scope(execution_kind),
                 key,
-                claim_id,
+                durable_claim_id,
                 status="succeeded",
                 outcome={"status": "succeeded"},
             )
@@ -1008,6 +1040,7 @@ class GovernanceService:
                     request_id,
                     pending.decision_id,
                     lambda: pending.handler(copy.deepcopy(dict(pending.request.params))),
+                    execution_kind="approval",
                 ),
                 now=float(self.clock()),
             )
@@ -1071,6 +1104,47 @@ class GovernanceService:
             outcome="recovery_failed",
             failure_reason=reason,
         )
+
+    def reconcile_execution(
+        self,
+        key: str,
+        *,
+        execution_kind: str = "decision",
+        reason: str = "operator reconciliation after worker restart",
+    ):
+        """Finalize an orphaned claim as unknown without changing a terminal result.
+
+        This is an operator-controlled transition. It must only be used after
+        checking the external system because the repository cannot determine
+        whether an arbitrary side effect completed before a worker stopped.
+        """
+        if self.repository is None:
+            raise ServiceError(
+                "durable_state_unavailable",
+                "execution reconciliation requires a durable repository",
+                HTTPStatus.SERVICE_UNAVAILABLE,
+            )
+        if execution_kind not in {"decision", "approval"}:
+            raise ServiceError("invalid_request", "unknown execution claim kind")
+        try:
+            claim = self.repository.load_execution(
+                self._durable_execution_scope(execution_kind), key
+            )
+            if claim.status == "claimed":
+                claim = self.repository.complete_execution(
+                    self._durable_execution_scope(execution_kind),
+                    key,
+                    claim.claim_id,
+                    status="unknown",
+                    outcome={"reason": reason},
+                )
+            return claim
+        except StoreError as exc:
+            raise ServiceError(
+                "durable_state_unavailable",
+                "execution claim could not be reconciled",
+                HTTPStatus.SERVICE_UNAVAILABLE,
+            ) from exc
 
     def handle(
         self,

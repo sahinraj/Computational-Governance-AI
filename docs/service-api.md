@@ -143,5 +143,8 @@ service = DurableGovernanceService(
 The adapter does not claim exactly-once delivery of arbitrary external side
 effects. A handler failure after an execution claim is persisted as
 `operation_uncertain`; operators must reconcile that claim before retrying.
+For a worker that stops with a `claimed` record, call the explicit
+`service.reconcile_execution(key)` operator transition after checking the
+external system. Terminal execution results are immutable.
 The durable reference is single-region and does not replace TLS termination,
 credential issuance, encryption/key management, or operational authentication.
