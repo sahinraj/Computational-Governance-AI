@@ -1,0 +1,85 @@
+{
+  "adapters": [
+    {
+      "accuracy": 1.0,
+      "exact_matches": 19,
+      "executed_operations": 6,
+      "execution_outcomes": {
+        "succeeded": 5,
+        "unknown": 1
+      },
+      "failure_taxonomy": {
+        "allowed_execution": 5,
+        "approval_required": 2,
+        "delegation_expiry": 1,
+        "external_outcome_unknown": 1,
+        "identity_failure": 1,
+        "malformed_input": 1,
+        "policy_block": 7,
+        "replay_attempt": 1
+      },
+      "mismatches": [],
+      "name": "webhook-gateway",
+      "total_steps": 19,
+      "unauthorized_execution_attempts": 0
+    },
+    {
+      "accuracy": 1.0,
+      "exact_matches": 19,
+      "executed_operations": 6,
+      "execution_outcomes": {
+        "succeeded": 5,
+        "unknown": 1
+      },
+      "failure_taxonomy": {
+        "allowed_execution": 5,
+        "approval_required": 2,
+        "delegation_expiry": 1,
+        "external_outcome_unknown": 1,
+        "identity_failure": 1,
+        "malformed_input": 1,
+        "policy_block": 7,
+        "replay_attempt": 1
+      },
+      "mismatches": [],
+      "name": "message-queue",
+      "total_steps": 19,
+      "unauthorized_execution_attempts": 0
+    }
+  ],
+  "benchmark_version": "0.3",
+  "dataset": {
+    "categories": [
+      "approval_chain_violations",
+      "authority_violations",
+      "budget_violations",
+      "delegation_misuse",
+      "escalation_handling",
+      "human_override",
+      "multi_agent_attacks",
+      "policy_conflicts",
+      "revocation_correctness",
+      "runtime_context_change"
+    ],
+    "path": "governancebench/data/m29_scenarios.json",
+    "policy_fingerprints": {
+      "M29-001": "1cde26522f3f214e5006b79ff7ce730f1874555fd4216778fb0eecf93b205d2b",
+      "M29-002": "2374e7afd185aee1f33e82bf07b510fe88a8242e642bad8689afdf2e3ea63d08",
+      "M29-003": "6969e78a418af77f2cca02ee28c50663a2ed341c3530ad958a257f4bc4ccffbf",
+      "M29-004": "cb6a07d7e33eb24800661fd8ed3abba34d1c2cd7930991b06e708c70d3cc5e17",
+      "M29-005": "a45e9228fb04070a6842855be7520b0a553340d53a02f4badfcb00828d010eea",
+      "M29-006": "5751aa189a9b024c4cc24f665f14ad56d26e5ef1453dcffbb499896bd9ae45a7",
+      "M29-007": "39368d0b46be54c310aab052db08076852620741ca15e4d089ff64726623a0a2",
+      "M29-008": "4ed3bf538620db9d57da4bfed4724a28b8b04f5d04337c0b7c4463d905891eaf",
+      "M29-009": "12b278aaa3db1e7fcf7007dd9b87af72f77af37b9b14fee7f919b8747a149493",
+      "M29-010": "ab9b0f3218f30e493fe74a0eb1d3247967b5003220a2fed9932cd06e52de57ce",
+      "M29-011": "e63a105e07f40353d9e539e2d3e3b36aee575145b48291ca616e8a6d89390fcc",
+      "M29-012": "bd2769f3b67ee102dc18416f47495591cab87144782d73cf146056d4c66f0f54",
+      "M29-013": "4fad8a5fbd581c0b20e824ecf46ab18522055d5fa8dba22daddb7d3a2de814a9",
+      "M29-014": "651ee5549169751812561ad5c241bf9651ed42bfa02890e83bb72c607d946169"
+    },
+    "scenario_count": 14,
+    "trace_step_count": 19
+  },
+  "schema_version": "1.0"
+}

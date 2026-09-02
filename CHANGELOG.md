@@ -9,6 +9,8 @@
   recovery, credential exclusion, and handler-failure recovery.
 - Hardened review paths with scoped execution claims, explicit orphan-claim
   reconciliation, and retry-safe durable-commit recovery.
+- Added M29's versioned realistic operational corpus, webhook and message-queue
+  adapter contract tests, deterministic benchmark report, and CI validation.
 
 - Hardened secure approval workflows so caller-constructed identities cannot
   approve actions; authenticated denials now retain identity provenance.
