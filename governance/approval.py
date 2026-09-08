@@ -210,6 +210,14 @@ class ApprovalManager:
         if identity is not None:
             current = request.created_at if now is None else float(now)
             identity_reference = self._validate_identity(identity, role, current)
+            if any(
+                reference == identity_reference
+                for _, reference in request.vote_identity_references
+            ):
+                raise ApprovalError(
+                    "authenticated approver identity has already voted on "
+                    f"{request.id}"
+                )
         self._check_binding(request, policy, action, context, delegation)
         request.votes = request.votes + (role,)
         if identity_reference is not None:
@@ -348,6 +356,15 @@ class ApprovalManager:
                 request.vote_identity_references
             ) or any(role not in request.votes for role, _ in request.vote_identity_references):
                 raise ApprovalError("invalid approval identity vote references")
+            references = [
+                reference for _, reference in request.vote_identity_references
+            ]
+            if len(set(references)) != len(references):
+                raise ApprovalError("approval quorum cannot reuse an approver identity")
+            if manager.require_identity and len(references) != len(request.votes):
+                raise ApprovalError(
+                    "authenticated approval snapshots require one identity per vote"
+                )
             if request.denial_identity_reference is not None and request.state is not ApprovalState.DENIED:
                 raise ApprovalError("invalid approval denial identity reference")
             manager._requests[request.id] = request
