@@ -81,6 +81,7 @@ docs/              GitHub Pages site
 | M27 | Policy lifecycle and controlled rollout | ✅ |
 | M28 | Adversarial assurance and fault injection | ✅ |
 | M29 | Realistic traces and external adapter benchmark | ✅ |
+| M30 | Threat model and deterministic red-team suite | ✅ |
 
 ## Quickstart
 
@@ -145,6 +146,13 @@ and record zero unauthorized execution attempts. See
 [`docs/benchmark-m29.md`](docs/benchmark-m29.md) and
 [`reports/m29-benchmark.json`](reports/m29-benchmark.json) for the reproducible
 report.
+
+M30 adds a versioned threat model and seven deterministic red-team cases for
+replay, identity substitution, policy downgrade, stale approvals, approval
+collusion, confused-deputy capability crossing, and uncertain-outcome recovery.
+The suite requires fail-closed behavior and no unsafe execution, and publishes
+its evidence in [`docs/threat-model-m30.md`](docs/threat-model-m30.md) and
+[`reports/m30-red-team.json`](reports/m30-red-team.json).
 
 For integrations, `governance.RuntimeAdapter` is the single pre-execution
 entry point for typed `ToolCall` envelopes. Enforce mode invokes the supplied

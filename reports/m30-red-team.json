@@ -1,0 +1,97 @@
+{
+  "case_count": 7,
+  "cases": [
+    {
+      "case_id": "M30-REPLAY",
+      "control": "durable idempotency and single execution",
+      "evidence": {
+        "execution_count": 1,
+        "response_replayed": true
+      },
+      "failure": null,
+      "passed": true,
+      "threat": "replay and duplicate execution"
+    },
+    {
+      "case_id": "M30-IDENTITY",
+      "control": "verified subject binding before execution",
+      "evidence": {
+        "execution_count": 0,
+        "status": 401
+      },
+      "failure": null,
+      "passed": true,
+      "threat": "identity substitution"
+    },
+    {
+      "case_id": "M30-DOWNGRADE",
+      "control": "monotonic activation and content hashes",
+      "evidence": {
+        "downgrade_rejected": true,
+        "errors": [
+          "rollback from 2.0.0 to 1.0.0 requires explicit override",
+          "policy source does not match bundle semantics"
+        ],
+        "tamper_rejected": true
+      },
+      "failure": null,
+      "passed": true,
+      "threat": "policy downgrade and bundle tampering"
+    },
+    {
+      "case_id": "M30-STALE-APPROVAL",
+      "control": "approval binding to policy/action/context/state",
+      "evidence": {
+        "error": "approval request approval-0001 is bound to changed policy, state",
+        "stale_approval_rejected": true
+      },
+      "failure": null,
+      "passed": true,
+      "threat": "stale approval reuse"
+    },
+    {
+      "case_id": "M30-COLLUSION",
+      "control": "distinct verified approver identities for quorum",
+      "evidence": {
+        "error": "authenticated approver identity has already voted on approval-0001",
+        "independent_second_vote_accepted": true,
+        "same_identity_second_vote_rejected": true
+      },
+      "failure": null,
+      "passed": true,
+      "threat": "approval collusion"
+    },
+    {
+      "case_id": "M30-CONFUSED-DEPUTY",
+      "control": "trusted actor registry over caller claims",
+      "evidence": {
+        "caller_claim_ignored": true,
+        "decision": "Block",
+        "execution_count": 0
+      },
+      "failure": null,
+      "passed": true,
+      "threat": "confused deputy capability crossing"
+    },
+    {
+      "case_id": "M30-RECOVERY",
+      "control": "durable claim state and no unsafe retry",
+      "evidence": {
+        "execution_count": 1,
+        "recovered_claim_status": "unknown",
+        "uncertain_outcome_preserved": true
+      },
+      "failure": null,
+      "passed": true,
+      "threat": "restart and uncertain-outcome recovery"
+    }
+  ],
+  "exact": true,
+  "failed": 0,
+  "failure_taxonomy": {
+    "passed": 7
+  },
+  "milestone": "M30",
+  "passed": 7,
+  "schema_version": "1.0"
+}

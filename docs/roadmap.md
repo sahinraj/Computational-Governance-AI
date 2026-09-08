@@ -198,6 +198,22 @@ and prove that no blocked or escalated action crosses the execution probe.
 production performance claims. The corpus is intentionally small, labels remain
 hand-auditable, and external uncertain outcomes still require reconciliation.
 
+### M30 — Threat model and deterministic red-team suite
+
+**Status: complete at the bounded reference-library boundary.** M30 defines an
+explicit attack matrix and runs seven deterministic cases covering replay,
+identity substitution, policy downgrade and bundle tampering, stale approval
+reuse, approval collusion, confused-deputy capability crossing, and restart
+recovery after an uncertain external outcome. Every case requires fail-closed
+behavior and verifies that blocked or unsafe work does not reach the execution
+probe.
+
+Secure quorum approvals require distinct provider-verified identity references,
+including after snapshot restore. The suite uses local test identities and the
+single-region SQLite reference adapter; it does not claim exhaustive fuzzing,
+formal verification, vendor integration, exactly-once arbitrary side effects,
+or production readiness.
+
 ## M24/M25 follow-up — Durable service integration
 
 **Status: complete at the reference-library boundary.** The opt-in

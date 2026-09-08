@@ -11,6 +11,11 @@
   reconciliation, and retry-safe durable-commit recovery.
 - Added M29's versioned realistic operational corpus, webhook and message-queue
   adapter contract tests, deterministic benchmark report, and CI validation.
+- Added M30's explicit threat model and deterministic red-team suite covering
+  replay, identity substitution, policy downgrade, stale approvals, approval
+  collusion, confused-deputy behavior, and uncertain-outcome recovery.
+- Hardened secure quorum approvals so one verified identity cannot satisfy
+  multiple approval roles; restored snapshots reject reused approver identities.
 
 - Hardened secure approval workflows so caller-constructed identities cannot
   approve actions; authenticated denials now retain identity provenance.
