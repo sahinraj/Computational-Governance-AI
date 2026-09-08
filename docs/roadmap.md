@@ -185,6 +185,19 @@ verification.
 The goal is evidence that the system is safe under adversarial conditions, not
 just evidence that the happy path works.
 
+### M29 — Expanded benchmark with realistic traces and external adapters
+
+**Status: complete at the reference-library boundary.** M29 adds a versioned
+14-scenario, 19-step operational corpus covering deployment, rollback, secrets,
+incident response, infrastructure changes, identity failure, delegation expiry,
+replay, and uncertain external outcomes. Two dependency-free adapters model
+distinct webhook and message-queue contracts. Both reproduce the labels exactly
+and prove that no blocked or escalated action crosses the execution probe.
+
+**Boundary:** The adapters are contract test doubles, not vendor integrations or
+production performance claims. The corpus is intentionally small, labels remain
+hand-auditable, and external uncertain outcomes still require reconciliation.
+
 ## M24/M25 follow-up — Durable service integration
 
 **Status: complete at the reference-library boundary.** The opt-in

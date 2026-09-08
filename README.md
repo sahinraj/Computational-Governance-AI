@@ -80,6 +80,7 @@ docs/              GitHub Pages site
 | M26 | Observability and decision telemetry | ✅ |
 | M27 | Policy lifecycle and controlled rollout | ✅ |
 | M28 | Adversarial assurance and fault injection | ✅ |
+| M29 | Realistic traces and external adapter benchmark | ✅ |
 
 ## Quickstart
 
@@ -127,6 +128,7 @@ The benchmark and failure harness are standard-library runners:
 
 ```bash
 python -m evaluation.run_benchmark
+python -m evaluation.m29_benchmark --check
 python -m evaluation.failure_harness
 ```
 
@@ -135,6 +137,14 @@ GovernanceBench v0.2 contains 30 canonical scenarios across 10 categories and
 reference implementation scores 1.0 exact accuracy; the static baseline
 remains weaker on the dynamic categories. Generated JSON artifacts live in
 `reports/`.
+
+M29 adds a versioned 14-scenario operational corpus with 19 trace steps across
+deployment, rollback, secrets, incident response, and infrastructure workflows.
+The webhook-gateway and message-queue reference adapters both match all labels
+and record zero unauthorized execution attempts. See
+[`docs/benchmark-m29.md`](docs/benchmark-m29.md) and
+[`reports/m29-benchmark.json`](reports/m29-benchmark.json) for the reproducible
+report.
 
 For integrations, `governance.RuntimeAdapter` is the single pre-execution
 entry point for typed `ToolCall` envelopes. Enforce mode invokes the supplied
